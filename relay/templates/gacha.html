@@ -7,6 +7,26 @@
         <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='gacha.css') }}">
         <script src="{{ url_for('static', filename='header.js') }}" defer></script>
+        <script>
+            // チケット数を更新する関数
+            function updateTicketCount(newCount) {
+                const ticketCountEl = document.getElementById('ticket-count');
+                const spinButton = document.getElementById('spin-button');
+                if (ticketCountEl) {
+                    ticketCountEl.textContent = newCount;
+                }
+                if (spinButton) {
+                    spinButton.disabled = newCount < 1;
+                }
+            }
+            
+            // ページロード時にチケット数をセッションから取得（バックアップ用）
+            window.addEventListener('load', function() {
+                // チケット数はサーバーから渡された値を使用
+                const currentTickets = {{ tickets }};
+                updateTicketCount(currentTickets);
+            });
+        </script>
     </head>
     <body>
         <header class="header">
@@ -38,6 +58,11 @@
                 <p class="gacha-description">
                     <strong>次のアイデアは、ここからはじまる。</strong>
                 </p>
+                <div class="ticket-display">
+                    <span class="ticket-label">🎫 ガチャチケット</span>
+                    <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
+                    <span class="ticket-unit">枚</span>
+                </div>
                 
                 <form action="{{ url_for('spin') }}" method="get">
                     {% set category_options = [
@@ -77,7 +102,9 @@
                             {% endfor %}
                         </div>
                     </div>
-                    <button type="submit" class="spin-button">ガチャを回す</button>
+                    <button type="submit" class="spin-button" id="spin-button" {% if tickets < 1 %}disabled{% endif %}>
+                        ガチャを回す
+                    </button>
                 </form>
 
                 <a href="{{ url_for('index') }}" class="link-secondary">トップページに戻る</a>

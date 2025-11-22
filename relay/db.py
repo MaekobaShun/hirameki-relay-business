@@ -116,12 +116,14 @@ def create_table():
                 password     TEXT NOT NULL,
                 email        VARCHAR(255) UNIQUE NOT NULL,
                 icon_path    TEXT,
-                created_at   TIMESTAMP NOT NULL
+                created_at   TIMESTAMP NOT NULL,
+                tickets      INTEGER DEFAULT 0 NOT NULL
             )
         """)
 
         if using_supabase():
             con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS icon_path TEXT")
+            con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS tickets INTEGER DEFAULT 0 NOT NULL")
             try:
                 con.execute("ALTER TABLE mypage ALTER COLUMN password TYPE TEXT")
             except Exception:
@@ -133,6 +135,10 @@ def create_table():
         else:
             try:
                 con.execute("ALTER TABLE mypage ADD COLUMN icon_path TEXT")
+            except Exception:
+                pass
+            try:
+                con.execute("ALTER TABLE mypage ADD COLUMN tickets INTEGER DEFAULT 0 NOT NULL")
             except Exception:
                 pass
 
@@ -205,7 +211,7 @@ def fetch_random_item(exclude_user_id=None, category=None):
 def get_user_by_email(email: str):
     with get_connection() as con:
         row = con.execute(
-            "SELECT user_id, nickname, password, email, icon_path, created_at FROM mypage WHERE email = ?",
+            "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(tickets, 0) FROM mypage WHERE email = ?",
             (email,)
         ).fetchone()
     return row
@@ -214,15 +220,44 @@ def get_user_by_email(email: str):
 def get_user_by_user_id(user_id: str):
     with get_connection() as con:
         row = con.execute(
-            "SELECT user_id, nickname, password, email, icon_path, created_at FROM mypage WHERE user_id = ?",
+            "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(tickets, 0) FROM mypage WHERE user_id = ?",
             (user_id,)
         ).fetchone()
     return row
 
 
+def get_user_tickets(user_id: str) -> int:
+    """ユーザーのチケット数を取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT COALESCE(tickets, 0) FROM mypage WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+    return row[0] if row else 0
+
+
+def update_user_tickets(user_id: str, tickets: int) -> None:
+    """ユーザーのチケット数を更新"""
+    with get_connection() as con:
+        con.execute(
+            "UPDATE mypage SET tickets = ? WHERE user_id = ?",
+            (tickets, user_id)
+        )
+        if hasattr(con, 'commit'):
+            con.commit()
+
+
+def add_user_tickets(user_id: str, amount: int) -> int:
+    """ユーザーのチケットを増やす（負の値も可）"""
+    current_tickets = get_user_tickets(user_id)
+    new_tickets = max(0, current_tickets + amount)  # 0以下にはならない
+    update_user_tickets(user_id, new_tickets)
+    return new_tickets
+
+
 def insert_user(user_id: str, nickname: str, password_hash: str, email: str, icon_path: str | None, created_at: str) -> None:
     with get_connection() as con:
         con.execute(
-            "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, nickname, password_hash, email, icon_path, created_at)
+            "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, tickets) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, nickname, password_hash, email, icon_path, created_at, 1)
         )
