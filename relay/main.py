@@ -640,3 +640,47 @@ def mypage():
         gacha_results=gacha_results,
         revival_notifications=revival_notifications
     )
+
+
+@app.route('/ranking')
+@login_required
+def ranking():
+    """投稿数ランキングページ"""
+    with get_connection() as con:
+        # 投稿数でユーザーをランキング（投稿数が多い順）
+        ranking_rows = con.execute("""
+            SELECT 
+                u.user_id,
+                u.nickname,
+                u.icon_path,
+                COUNT(i.idea_id) as post_count
+            FROM mypage u
+            LEFT JOIN ideas i ON u.user_id = i.user_id
+            GROUP BY u.user_id, u.nickname, u.icon_path
+            HAVING COUNT(i.idea_id) > 0
+            ORDER BY post_count DESC, u.created_at ASC
+        """).fetchall()
+
+    rankings = []
+    for rank, row in enumerate(ranking_rows, start=1):
+        rankings.append({
+            'rank': rank,
+            'user_id': row[0],
+            'nickname': row[1],
+            'icon_path': row[2],
+            'post_count': row[3]
+        })
+
+    current_user_id = session.get('user_id')
+    current_user_rank = None
+    for ranking_item in rankings:
+        if ranking_item['user_id'] == current_user_id:
+            current_user_rank = ranking_item['rank']
+            break
+
+    return render_template(
+        'ranking.html',
+        rankings=rankings,
+        current_user_id=current_user_id,
+        current_user_rank=current_user_rank
+    )
