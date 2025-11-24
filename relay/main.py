@@ -16,6 +16,21 @@ from relay.db import (
     insert_user,
     get_user_tickets,
     add_user_tickets,
+    create_event,
+    get_event,
+    get_all_events,
+    get_public_events,
+    get_active_events,
+    join_event,
+    is_event_participant,
+    get_event_participants,
+    add_event_idea,
+    get_event_ideas,
+    get_event_ranking,
+    get_event_status,
+    update_event_statuses,
+    update_event,
+    delete_event,
 )
 import uuid
 from datetime import datetime
@@ -191,11 +206,38 @@ def post():
         idea_id = str(uuid.uuid4())
         user_id = session['user_id']
         created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # inheritance_flagはデフォルトでFalse（SQLiteの場合は0）
+        inheritance_flag = False
         con.execute(
-            "INSERT INTO ideas VALUES (?, ?, ?, ?, ?, ?)",
-            [idea_id, title, detail, category, user_id, created_at]
+            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [idea_id, title, detail, category, user_id, created_at, inheritance_flag]
         )
         con.commit()
+    
+    # イベント中に投稿した場合、イベントに関連付ける
+    active_events = get_active_events()
+    now = datetime.now()
+    for event_row in active_events:
+        event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e = event_row
+        # 日時が文字列の場合はdatetimeオブジェクトに変換
+        if isinstance(start_date_e, str):
+            try:
+                start_date_e = datetime.strptime(start_date_e, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    start_date_e = datetime.strptime(start_date_e, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+        if isinstance(end_date_e, str):
+            try:
+                end_date_e = datetime.strptime(end_date_e, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    end_date_e = datetime.strptime(end_date_e, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+        if is_event_participant(event_id_e, user_id) and start_date_e <= now <= end_date_e:
+            add_event_idea(event_id_e, idea_id)
     
     # アイデア投稿時にチケット+1枚付与
     new_tickets = add_user_tickets(user_id, 1)
@@ -709,3 +751,508 @@ def ranking():
         current_user_id=current_user_id,
         current_user_rank=current_user_rank
     )
+
+
+# ==================== イベント関連のルーティング ====================
+
+@app.route('/events')
+@login_required
+def events():
+    """イベント一覧/参加/開催ページ"""
+    update_event_statuses()  # イベント状態を更新
+    user_id = session['user_id']
+    user_name = session.get('nickname', 'ユーザー')
+    
+    # 参加中のイベント（全て）と公開のイベント（参加していないもののみ）を取得
+    all_events = get_all_events()
+    public_events = get_public_events()
+    
+    # 参加中のイベントと公開イベントを分ける
+    my_events = []  # 参加中のイベント
+    other_events = []  # 公開されているが参加していないイベント
+    
+    # 参加中のイベントを取得
+    for event_row in all_events:
+        event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        if is_event_participant(event_id, user_id):
+            # 日時が文字列の場合はdatetimeオブジェクトに変換
+            if isinstance(start_date, str):
+                try:
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
+                    except ValueError:
+                        continue
+            if isinstance(end_date, str):
+                try:
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
+                    except ValueError:
+                        continue
+            
+            # 開催者情報を取得
+            creator_row = get_user_by_user_id(created_by)
+            creator_nickname = creator_row[1] if creator_row else '不明'
+            
+            my_events.append({
+                'event_id': event_id,
+                'name': name,
+                'start_date': start_date,
+                'end_date': end_date,
+                'status': status,
+                'is_participant': True,
+                'created_by': created_by,
+                'creator_nickname': creator_nickname,
+                'is_public': is_public,
+                'created_at': created_at
+            })
+    
+    # 公開されているが参加していないイベントを取得
+    for event_row in public_events:
+        event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        if not is_event_participant(event_id, user_id):
+            # 日時が文字列の場合はdatetimeオブジェクトに変換
+            if isinstance(start_date, str):
+                try:
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
+                    except ValueError:
+                        continue
+            if isinstance(end_date, str):
+                try:
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    try:
+                        end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
+                    except ValueError:
+                        continue
+            
+            # 開催者情報を取得
+            creator_row = get_user_by_user_id(created_by)
+            creator_nickname = creator_row[1] if creator_row else '不明'
+            
+            other_events.append({
+                'event_id': event_id,
+                'name': name,
+                'start_date': start_date,
+                'end_date': end_date,
+                'status': status,
+                'is_participant': False,
+                'created_by': created_by,
+                'creator_nickname': creator_nickname,
+                'is_public': is_public,
+                'created_at': created_at
+            })
+    
+    return render_template(
+        'events.html',
+        my_events=my_events,
+        other_events=other_events,
+        user_name=user_name
+    )
+
+
+@app.route('/events/create', methods=['POST'])
+@login_required
+def event_create():
+    """イベントを作成"""
+    user_id = session['user_id']
+    name = request.form.get('name', '').strip()
+    password = request.form.get('password', '').strip()
+    start_date_str = request.form.get('start_date', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+    is_public = request.form.get('is_public') == '1'  # チェックボックスの値
+    
+    if not name or not password or not start_date_str or not end_date_str:
+        flash('すべての項目を入力してください。')
+        return redirect(url_for('events'))
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%dT%H:%M')
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        flash('日時の形式が正しくありません。')
+        return redirect(url_for('events'))
+    
+    if end_date <= start_date:
+        flash('終了日時は開始日時より後である必要があります。')
+        return redirect(url_for('events'))
+    
+    event_id = uuid.uuid4().hex
+    password_hash = generate_password_hash(password)
+    
+    create_event(event_id, name, password_hash, start_date, end_date, user_id, is_public)
+    
+    # 作成者は自動的に参加
+    join_event(event_id, user_id)
+    
+    flash('イベントを作成しました！')
+    return redirect(url_for('event_detail', event_id=event_id))
+
+
+@app.route('/events/join', methods=['POST'])
+@login_required
+def event_join():
+    """イベントに参加（パスワード認証）"""
+    user_id = session['user_id']
+    password = request.form.get('password', '').strip()
+    event_id = request.form.get('event_id', '').strip()
+    
+    # イベントIDが指定されている場合（既に参加済みの場合の再入場、またはイベント選択から参加）
+    if event_id:
+        event_row = get_event(event_id)
+        if not event_row:
+            flash('イベントが見つかりません。')
+            return redirect(url_for('events'))
+        
+        event_id_check, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        
+        # 既に参加している場合はそのまま入る（パスワード不要）
+        if is_event_participant(event_id, user_id):
+            flash('イベントページに移動しました。')
+            return redirect(url_for('event_detail', event_id=event_id))
+        
+        # パスワードが提供されている場合はチェックして参加
+        if password:
+            if check_password_hash(password_hash, password):
+                # 参加処理
+                if join_event(event_id, user_id):
+                    flash(f'{name} に参加しました！')
+                    return redirect(url_for('event_detail', event_id=event_id))
+                else:
+                    flash('参加に失敗しました。')
+                    return redirect(url_for('events'))
+            else:
+                flash('パスワードが正しくありません。')
+                return redirect(url_for('events'))
+        else:
+            flash('パスワードを入力してください。')
+            return redirect(url_for('events'))
+    
+    if not password:
+        flash('パスワードを入力してください。')
+        return redirect(url_for('events'))
+    
+    # 全てのイベントをチェック
+    all_events = get_all_events()
+    matching_events = []
+    
+    for event_row in all_events:
+        event_id_check, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        
+        # パスワードをチェック
+        if check_password_hash(password_hash, password):
+            # 既に参加しているイベントは除外
+            if not is_event_participant(event_id_check, user_id):
+                matching_events.append({
+                    'event_id': event_id_check,
+                    'name': name,
+                    'status': status
+                })
+    
+    # パスワードが一致するイベントがない場合
+    if not matching_events:
+        flash('パスワードが正しくありません。または既に参加済みです。')
+        return redirect(url_for('events'))
+    
+    # パスワードが一致するイベントが1つの場合、自動参加
+    if len(matching_events) == 1:
+        event = matching_events[0]
+        event_id = event['event_id']
+        event_name = event['name']
+        
+        # 既に参加している場合はそのまま入る
+        if is_event_participant(event_id, user_id):
+            flash(f'{event_name} に移動しました。')
+            return redirect(url_for('event_detail', event_id=event_id))
+        
+        # 参加処理
+        if join_event(event_id, user_id):
+            flash(f'{event_name} に参加しました！')
+            return redirect(url_for('event_detail', event_id=event_id))
+        else:
+            flash('参加に失敗しました。')
+            return redirect(url_for('events'))
+    
+    # パスワードが一致するイベントが複数ある場合、選択画面を表示
+    # events.htmlで選択フォームを表示するように修正が必要
+    flash(f'パスワードが一致するイベントが{len(matching_events)}つ見つかりました。イベントを選択してください。')
+    # TODO: イベント選択画面へのリダイレクトまたは、events.htmlで選択UIを表示
+    return redirect(url_for('events'))
+
+
+@app.route('/events/<event_id>')
+@login_required
+def event_detail(event_id):
+    """イベント詳細ページ"""
+    update_event_statuses()  # イベント状態を更新
+    user_id = session['user_id']
+    user_name = session.get('nickname', 'ユーザー')
+    
+    event_row = get_event(event_id)
+    if not event_row:
+        flash('イベントが見つかりません。')
+        return redirect(url_for('events'))
+    
+    event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+    
+    # 日時が文字列の場合はdatetimeオブジェクトに変換
+    from relay.db import _parse_datetime
+    created_at = _parse_datetime(created_at)
+    start_date = _parse_datetime(start_date)
+    end_date = _parse_datetime(end_date)
+    
+    # 開催者情報を取得
+    creator_row = get_user_by_user_id(created_by)
+    creator_nickname = creator_row[1] if creator_row else '不明'
+    is_creator = (user_id == created_by)
+    
+    # 参加チェック
+    if not is_event_participant(event_id, user_id):
+        flash('このイベントに参加していません。')
+        return redirect(url_for('events'))
+    
+    # イベントが終了している場合は終了ページへ
+    if status == 'ended':
+        return redirect(url_for('event_ended', event_id=event_id))
+    
+    # 参加者一覧
+    participants = []
+    for p_row in get_event_participants(event_id):
+        user_id_p, joined_at, nickname, icon_path = p_row
+        participants.append({
+            'user_id': user_id_p,
+            'nickname': nickname,
+            'icon_path': icon_path,
+            'joined_at': joined_at
+        })
+    
+    # イベント中のアイデア
+    ideas = get_event_ideas(event_id)
+    
+    # ランキング
+    rankings = []
+    for rank_row in get_event_ranking(event_id):
+        user_id_r, nickname_r, icon_path_r, post_count = rank_row
+        rankings.append({
+            'user_id': user_id_r,
+            'nickname': nickname_r,
+            'icon_path': icon_path_r,
+            'post_count': post_count
+        })
+    
+    event = {
+        'event_id': event_id,
+        'name': name,
+        'start_date': start_date,
+        'end_date': end_date,
+        'status': status,
+        'created_by': created_by,
+        'creator_nickname': creator_nickname,
+        'created_at': created_at,
+        'is_public': is_public,
+        'is_creator': is_creator
+    }
+    
+    return render_template(
+        'event_detail.html',
+        event=event,
+        participants=participants,
+        rankings=rankings,
+        participant_count=len(participants),
+        idea_count=len(ideas),
+        user_name=user_name
+    )
+
+
+@app.route('/events/<event_id>/ended')
+@login_required
+def event_ended(event_id):
+    """イベント終了ページ"""
+    update_event_statuses()  # イベント状態を更新
+    user_id = session['user_id']
+    user_name = session.get('nickname', 'ユーザー')
+    
+    event_row = get_event(event_id)
+    if not event_row:
+        flash('イベントが見つかりません。')
+        return redirect(url_for('events'))
+    
+    event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+    
+    # 日時が文字列の場合はdatetimeオブジェクトに変換
+    from relay.db import _parse_datetime
+    created_at = _parse_datetime(created_at)
+    start_date = _parse_datetime(start_date)
+    end_date = _parse_datetime(end_date)
+    
+    # 開催者情報を取得
+    creator_row = get_user_by_user_id(created_by)
+    creator_nickname = creator_row[1] if creator_row else '不明'
+    is_creator = (user_id == created_by)
+    
+    # 参加チェック
+    if not is_event_participant(event_id, user_id):
+        flash('このイベントに参加していません。')
+        return redirect(url_for('events'))
+    
+    # 参加者一覧
+    participants = []
+    for p_row in get_event_participants(event_id):
+        user_id_p, joined_at, nickname, icon_path = p_row
+        participants.append({
+            'user_id': user_id_p,
+            'nickname': nickname,
+            'icon_path': icon_path,
+            'joined_at': joined_at
+        })
+    
+    # イベント中のアイデア
+    ideas = get_event_ideas(event_id)
+    
+    # ランキング（最終結果）
+    rankings = []
+    for rank_row in get_event_ranking(event_id):
+        user_id_r, nickname_r, icon_path_r, post_count = rank_row
+        rankings.append({
+            'user_id': user_id_r,
+            'nickname': nickname_r,
+            'icon_path': icon_path_r,
+            'post_count': post_count
+        })
+    
+    event = {
+        'event_id': event_id,
+        'name': name,
+        'start_date': start_date,
+        'end_date': end_date,
+        'status': status,
+        'created_by': created_by,
+        'creator_nickname': creator_nickname,
+        'created_at': created_at,
+        'is_public': is_public,
+        'is_creator': is_creator
+    }
+    
+    return render_template(
+        'event_ended.html',
+        event=event,
+        participants=participants,
+        rankings=rankings,
+        participant_count=len(participants),
+        idea_count=len(ideas),
+        user_name=user_name
+    )
+
+
+@app.route('/events/<event_id>/edit', methods=['GET', 'POST'])
+@login_required
+def event_edit(event_id):
+    """イベント編集ページ（開催者のみ）"""
+    user_id = session['user_id']
+    event_row = get_event(event_id)
+    
+    if not event_row:
+        flash('イベントが見つかりません。')
+        return redirect(url_for('events'))
+    
+    event_id_check, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+    
+    # 開催者チェック
+    if user_id != created_by:
+        flash('イベントの編集は開催者のみ可能です。')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    if request.method == 'POST':
+        new_name = request.form.get('name', '').strip()
+        new_start_date_str = request.form.get('start_date', '').strip()
+        new_end_date_str = request.form.get('end_date', '').strip()
+        new_is_public = request.form.get('is_public') == '1'
+        
+        if not new_name or not new_start_date_str or not new_end_date_str:
+            flash('すべての項目を入力してください。')
+            return redirect(url_for('event_edit', event_id=event_id))
+        
+        try:
+            new_start_date = datetime.strptime(new_start_date_str, '%Y-%m-%dT%H:%M')
+            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            flash('日時の形式が正しくありません。')
+            return redirect(url_for('event_edit', event_id=event_id))
+        
+        if new_end_date <= new_start_date:
+            flash('終了日時は開始日時より後である必要があります。')
+            return redirect(url_for('event_edit', event_id=event_id))
+        
+        # イベント情報を更新
+        update_event(event_id, name=new_name, start_date=new_start_date, end_date=new_end_date, is_public=new_is_public)
+        
+        flash('イベント情報を更新しました。')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # GETリクエストの場合、編集フォームを表示
+    user_name = session.get('nickname', 'ユーザー')
+    
+    # 日時が文字列の場合はdatetimeオブジェクトに変換
+    if isinstance(start_date, str):
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                start_date = datetime.now()
+    if isinstance(end_date, str):
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                end_date = datetime.now()
+    
+    # datetime-localフォーマットに変換
+    start_date_str = start_date.strftime('%Y-%m-%dT%H:%M')
+    end_date_str = end_date.strftime('%Y-%m-%dT%H:%M')
+    
+    event = {
+        'event_id': event_id,
+        'name': name,
+        'start_date': start_date,
+        'end_date': end_date,
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
+        'is_public': bool(is_public)
+    }
+    
+    return render_template('event_edit.html', event=event, user_name=user_name)
+
+
+@app.route('/events/<event_id>/delete', methods=['POST'])
+@login_required
+def event_delete(event_id):
+    """イベント削除（開催者のみ）"""
+    user_id = session['user_id']
+    event_row = get_event(event_id)
+    
+    if not event_row:
+        flash('イベントが見つかりません。')
+        return redirect(url_for('events'))
+    
+    event_id_check, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+    
+    # 開催者チェック
+    if user_id != created_by:
+        flash('イベントの削除は開催者のみ可能です。')
+        return redirect(url_for('event_detail', event_id=event_id))
+    
+    # イベントを削除
+    delete_event(event_id)
+    
+    flash(f'イベント「{name}」を削除しました。')
+    return redirect(url_for('events'))
