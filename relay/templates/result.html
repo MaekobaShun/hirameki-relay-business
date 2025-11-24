@@ -77,6 +77,18 @@
                         <h3 class="result-card__title">{{ item[1] }}</h3>
                         <p class="result-card__detail">{{ item[2] }}</p>
                         <span class="result-card__category">📁 {{ item[3] }}</span>
+                        <div class="result-stats">
+                            <div class="result-stat-item">
+                                <span class="result-stat-icon">🔄</span>
+                                <span class="result-stat-label">継承された数</span>
+                                <span class="result-stat-value">{{ inheritance_count }}</span>
+                            </div>
+                            <div class="result-stat-item">
+                                <span class="result-stat-icon">🎟️</span>
+                                <span class="result-stat-label">ガチャで引かれた数</span>
+                                <span class="result-stat-value">{{ gacha_count }}</span>
+                            </div>
+                        </div>
                     </article>
                 {% else %}
                     <div class="result-card">

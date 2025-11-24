@@ -509,6 +509,28 @@ def insert_user(user_id: str, nickname: str, password_hash: str, email: str, ico
             con.commit()
 
 
+# ==================== アイデア統計関連の関数 ====================
+
+def get_inheritance_count(idea_id: str) -> int:
+    """アイデアが継承された回数を取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT COUNT(*) FROM idea_inheritance WHERE parent_idea_id = ?",
+            (idea_id,)
+        ).fetchone()
+    return row[0] if row else 0
+
+
+def get_gacha_count(idea_id: str) -> int:
+    """アイデアがガチャで引かれた回数を取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT COUNT(*) FROM gacha_result WHERE idea_id = ?",
+            (idea_id,)
+        ).fetchone()
+    return row[0] if row else 0
+
+
 # ==================== イベント関連の関数 ====================
 
 def get_event_status(start_date: datetime, end_date: datetime) -> str:

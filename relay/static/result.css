@@ -129,6 +129,46 @@ body {
     border-radius: 999px;
     font-size: 0.9rem;
     font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.result-stats {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(229, 231, 235, 0.6);
+}
+
+.result-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    background: rgba(249, 250, 251, 0.9);
+    border-radius: 1rem;
+    min-width: 140px;
+}
+
+.result-stat-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.result-stat-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+    font-weight: 600;
+    text-align: center;
+}
+
+.result-stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #7c3aed;
+    line-height: 1;
 }
 
 .result-empty {
@@ -208,6 +248,16 @@ body {
 
     .result-card__title {
         font-size: 1.45rem;
+    }
+
+    .result-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .result-stat-item {
+        min-width: auto;
+        width: 100%;
     }
 
     .result-actions {

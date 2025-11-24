@@ -16,6 +16,9 @@ from relay.db import (
     insert_user,
     get_user_tickets,
     add_user_tickets,
+    get_inheritance_count,
+    get_gacha_count,
+    using_supabase,
     create_event,
     get_event,
     get_all_events,
@@ -218,7 +221,8 @@ def post():
     active_events = get_active_events()
     now = datetime.now()
     for event_row in active_events:
-        event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e = event_row
+        # is_publicカラムが追加されたため9カラム
+        event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e, is_public_e = event_row
         # 日時が文字列の場合はdatetimeオブジェクトに変換
         if isinstance(start_date_e, str):
             try:
@@ -240,8 +244,34 @@ def post():
             add_event_idea(event_id_e, idea_id)
     
     # アイデア投稿時にチケット+1枚付与
-    new_tickets = add_user_tickets(user_id, 1)
+    # セッションのチケット数を取得（なければDBから取得）
+    current_tickets = session.get('tickets')
+    if current_tickets is None:
+        current_tickets = get_user_tickets(user_id)
+    
+    # チケットを1枚増やす
+    new_tickets = current_tickets + 1
+    
+    # DBとセッションの両方を更新
+    with get_connection() as con:
+        try:
+            con.execute(
+                "UPDATE mypage SET ticket_count = ? WHERE user_id = ?",
+                (new_tickets, user_id)
+            )
+        except Exception:
+            try:
+                con.execute(
+                    "UPDATE mypage SET tickets = ? WHERE user_id = ?",
+                    (new_tickets, user_id)
+                )
+            except Exception:
+                pass
+        if not using_supabase():
+            con.commit()
+    
     session['tickets'] = new_tickets
+    session.modified = True
 
     return redirect(url_for('index'))
 
@@ -479,8 +509,16 @@ def logout():
 def gacha():
     selected_category = request.args.get("category", "")
     user_id = session.get('user_id')
-    tickets = get_user_tickets(user_id) if user_id else 0
-    session['tickets'] = tickets  # セッションも更新
+    
+    # セッションにチケット数があればそれを使用、なければDBから取得して同期
+    tickets = session.get('tickets')
+    if tickets is None and user_id:
+        tickets = get_user_tickets(user_id)
+        session['tickets'] = tickets
+    elif tickets is None:
+        tickets = 0
+        session['tickets'] = 0
+    
     return render_template("gacha.html", selected_category=selected_category, tickets=tickets)
 
 # ランダムに1つのアイテムを表示するルート
@@ -488,10 +526,18 @@ def gacha():
 @login_required
 def result():
     idea = None
+    inheritance_count = 0
+    gacha_count = 0
     idea_id = session.pop('last_gacha_idea_id', None)
     user_id = session.get('user_id')
-    tickets = get_user_tickets(user_id) if user_id else 0
-    session['tickets'] = tickets  # セッションも更新
+    
+    # セッションにチケット数があればそれを使用、なければDBから取得
+    tickets = session.get('tickets')
+    if tickets is None and user_id:
+        tickets = get_user_tickets(user_id)
+        session['tickets'] = tickets
+    elif tickets is None:
+        tickets = 0
 
     if idea_id:
         with get_connection() as con:
@@ -499,8 +545,19 @@ def result():
                 "SELECT idea_id, title, detail, category, user_id, created_at FROM ideas WHERE idea_id = ?",
                 (idea_id,)
             ).fetchone()
+        
+        # 統計情報を取得
+        if idea:
+            inheritance_count = get_inheritance_count(idea_id)
+            gacha_count = get_gacha_count(idea_id)
 
-    return render_template("result.html", item=idea, tickets=tickets)
+    return render_template(
+        "result.html", 
+        item=idea, 
+        tickets=tickets,
+        inheritance_count=inheritance_count,
+        gacha_count=gacha_count
+    )
 
 # ガチャを回して結果ページにリダイレクトするルート
 @app.route('/spin')
@@ -509,9 +566,14 @@ def spin():
     current_user_id = session.get('user_id')
     category = request.args.get('category')  # 💡カテゴリを取得
 
-    # チケットチェック
-    tickets = get_user_tickets(current_user_id)
-    if tickets < 1:
+    # セッションのチケット数をチェック（セッションを優先）
+    session_tickets = session.get('tickets')
+    if session_tickets is None:
+        # セッションに値がない場合のみDBから取得
+        session_tickets = get_user_tickets(current_user_id)
+        session['tickets'] = session_tickets
+    
+    if session_tickets < 1:
         flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
         return redirect(url_for('gacha', category=category))
 
@@ -529,11 +591,50 @@ def spin():
     author_id = item[4]
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    # チケットを1枚消費
-    new_tickets = add_user_tickets(current_user_id, -1)
-    session['tickets'] = new_tickets
-
+    # トランザクション内でチケットを消費してガチャ結果を保存
     with get_connection() as con:
+        # トランザクション内でDBのチケット数を取得（セッションと整合性チェック用）
+        try:
+            ticket_row = con.execute(
+                "SELECT COALESCE(ticket_count, tickets, 1) FROM mypage WHERE user_id = ?",
+                (current_user_id,)
+            ).fetchone()
+        except Exception:
+            try:
+                ticket_row = con.execute(
+                    "SELECT COALESCE(tickets, 1) FROM mypage WHERE user_id = ?",
+                    (current_user_id,)
+                ).fetchone()
+            except Exception:
+                ticket_row = (session_tickets,)
+        
+        db_tickets = ticket_row[0] if ticket_row else session_tickets
+        
+        # セッションとDBの値のうち、より小さい方を使用（安全側に倒す）
+        current_tickets = min(session_tickets, db_tickets)
+        
+        if current_tickets < 1:
+            session['tickets'] = 0
+            flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
+            return redirect(url_for('gacha', category=category))
+        
+        # チケットを1枚消費
+        new_tickets = max(0, current_tickets - 1)
+        try:
+            con.execute(
+                "UPDATE mypage SET ticket_count = ? WHERE user_id = ?",
+                (new_tickets, current_user_id)
+            )
+        except Exception:
+            try:
+                con.execute(
+                    "UPDATE mypage SET tickets = ? WHERE user_id = ?",
+                    (new_tickets, current_user_id)
+                )
+            except Exception:
+                pass
+        
+        # ガチャ結果を保存
         con.execute(
             "INSERT INTO gacha_result (result_id, user_id, idea_id, created_at) VALUES (?, ?, ?, ?)",
             (str(uuid.uuid4()), current_user_id, idea_id, now)
@@ -543,9 +644,15 @@ def spin():
                 "INSERT INTO revival_notify (notify_id, idea_id, author_id, picker_id, created_at) VALUES (?, ?, ?, ?, ?)",
                 (str(uuid.uuid4()), idea_id, author_id, current_user_id, now)
             )
-        con.commit()
-
+        
+        # SQLiteの場合は明示的にコミット
+        if not using_supabase():
+            con.commit()
+    
+    # セッションのチケット数を更新（確実に反映されるように）
+    session['tickets'] = new_tickets
     session['last_gacha_idea_id'] = idea_id
+    session.modified = True  # セッションの変更を明示的にマーク
 
     # ✅ カテゴリをつけて結果ページにリダイレクト
     return redirect(url_for('result', category=category))
