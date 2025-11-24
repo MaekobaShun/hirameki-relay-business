@@ -176,41 +176,72 @@ def uploaded_file(filename):
 @app.route('/')
 @login_required
 def index():
-    with get_connection() as con:
-        db_items = con.execute(
-            """
-            SELECT 
-                i.idea_id,
-                i.title,
-                i.detail,
-                i.category,
-                i.user_id,
-                i.created_at,
-                u.nickname
-            FROM ideas i
-            LEFT JOIN mypage u ON i.user_id = u.user_id
-            ORDER BY i.created_at DESC
-            """
-        ).fetchall()
-
-    items = []
-
-    for row in db_items:
-        items.append({
-            'idea_id': row[0],
-            'title': row[1],
-            'detail': row[2],
-            'category': row[3],
-            'user_id': row[4],
-            'created_at': row[5],
-            'nickname': row[6]
-        })
-    
+    user_id = session['user_id']
     user_name = session['nickname']
 
+    # 開催中のイベントを取得
+    active_events_rows = get_active_events()
+    active_events = []
+    
+    for event_row in active_events_rows:
+        event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        
+        # 日時が文字列の場合はdatetimeオブジェクトに変換
+        if isinstance(start_date, str):
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+        if isinstance(end_date, str):
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+
+        active_events.append({
+            'event_id': event_id,
+            'name': name,
+            'start_date': start_date,
+            'end_date': end_date,
+            'status': status
+        })
+
+    # ランキングを取得（トップ5）
+    with get_connection() as con:
+        ranking_rows = con.execute("""
+            SELECT 
+                u.user_id,
+                u.nickname,
+                u.icon_path,
+                COUNT(i.idea_id) as post_count
+            FROM mypage u
+            LEFT JOIN ideas i ON u.user_id = i.user_id
+            GROUP BY u.user_id, u.nickname, u.icon_path
+            HAVING COUNT(i.idea_id) > 0
+            ORDER BY post_count DESC, u.created_at ASC
+            LIMIT 5
+        """).fetchall()
+
+    rankings = []
+    for rank, row in enumerate(ranking_rows, start=1):
+        rankings.append({
+            'rank': rank,
+            'user_id': row[0],
+            'nickname': row[1],
+            'icon_path': row[2],
+            'post_count': row[3]
+        })
+    
     return render_template(
         'index.html',
-        items=items,
+        active_events=active_events,
+        rankings=rankings,
         user_name=user_name
     )
 

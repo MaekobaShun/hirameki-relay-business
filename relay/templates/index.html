@@ -4,84 +4,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ひらめきリレー - ハブ</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
+    <title>ひらめきリレー - ダッシュボード</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <!-- 共通のアイコンスタイルなどのためにhub.cssも読み込むか、dashboard.cssに統合するか。一旦dashboard.cssのみで構築 -->
 </head>
 
 <body>
-    <!-- Header -->
-    <!-- Header -->
-    {% include 'header.html' %}
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Welcome Section -->
-        <div class="welcome-section">
-            <h2 class="main-title">何をしますか?</h2>
-            <p class="main-subtitle">あなたのひらめきで、誰かのストーリーをつなげよう</p>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">💡</div>
+            <h2 class="logo-text">ひらめきリレー</h2>
         </div>
-
-        <!-- Action Cards -->
-        <div class="cards-grid">
-            <!-- 投稿する -->
-            <a href="{{ url_for('form') }}" class="action-card card-blue">
-                <div class="card-icon">✍️</div>
-                <h3 class="card-title">投稿する</h3>
-                <p class="card-subtitle">あなたのひらめきを共有</p>
-                <div class="card-arrow">→</div>
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('index') }}" class="nav-item active">
+                <span class="nav-icon">🏠</span>
+                <span>ホーム</span>
             </a>
-
-            <!-- ガチャを引く -->
-            <a href="{{ url_for('gacha') }}" class="action-card card-purple">
-                <div class="card-icon">🎲</div>
-                <h3 class="card-title">ガチャを引く</h3>
-                <p class="card-subtitle">新しい出会いを探そう</p>
-                <div class="card-arrow">→</div>
+            <a href="{{ url_for('form') }}" class="nav-item">
+                <span class="nav-icon">✍️</span>
+                <span>投稿する</span>
             </a>
-
-            <!-- マイページ -->
-            <a href="{{ url_for('mypage') }}" class="action-card card-orange">
-                <div class="card-icon">👤</div>
-                <h3 class="card-title">マイページ</h3>
-                <p class="card-subtitle">あなたの活動を確認</p>
-                <div class="card-arrow">→</div>
+            <a href="{{ url_for('gacha') }}" class="nav-item">
+                <span class="nav-icon">🎲</span>
+                <span>ピックアップガチャ</span>
             </a>
-        </div>
-
-        <!-- ランキングリンク -->
-        <div class="ranking-link-container">
-            <a href="{{ url_for('ranking') }}" class="ranking-link">📊 ランキングを見る</a>
-        </div>
-
-        <!-- イベント導線 -->
-        <div class="event-link-container" style="margin-top: 2rem;">
-            <a href="{{ url_for('events') }}" class="event-link" style="display: inline-block; padding: 1rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; text-decoration: none; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">
-                🎉 期間限定イベント
+            <!--
+            <a href="#" class="nav-item disabled">
+                <span class="nav-icon">📊</span>
+                <span>分析レポート</span>
             </a>
-        </div>
+            <a href="#" class="nav-item disabled">
+                <span class="nav-icon">⚙️</span>
+                <span>設定</span>
+            </a>
+            -->
+        </nav>
+    </aside>
 
-        <!-- 投稿数等いれたいとき用 -->
-        <!--
-        <div class="stats-container">
-            <div class="stat-item">
-                <div class="stat-number">12</div>
-                <div class="stat-label">投稿数</div>
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+        <!-- Header -->
+        <header class="dashboard-header header">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="アイデアや部署を検索...">
             </div>
-            <div class="stat-item">
-                <div class="stat-number">48</div>
-                <div class="stat-label">リレー参加</div>
+            <div class="header-actions">
+                <!-- 通知機能 -->
+                <button class="notification-btn" id="notification-bell">
+                    🔔
+                    {% if revival_notifications and revival_notifications|length > 0 %}
+                    <span class="notification-badge">{{ revival_notifications|length }}</span>
+                    {% endif %}
+                </button>
+                <a href="{{ url_for('mypage') }}" class="user-profile">
+                    <!-- アイコンがあれば表示、なければイニシャル -->
+                    <!-- アイコンのパス解決はサーバーサイドで行うか、ここでロジックを入れる -->
+                    {% if session.get('icon_path') %}
+                        {% if session['icon_path'].startswith('http') %}
+                            <img src="{{ session['icon_path'] }}" alt="{{ user_name }}" class="user-avatar">
+                        {% else %}
+                            <img src="{{ url_for('uploaded_file', filename=session['icon_path'].split('/')[-1]) }}" alt="{{ user_name }}" class="user-avatar">
+                        {% endif %}
+                    {% else %}
+                        <div class="user-avatar-placeholder">
+                            {{ user_name[0] }}
+                        </div>
+                    {% endif %}
+                    <span class="user-name">{{ user_name }}</span>
+                </a>
             </div>
-            <div class="stat-item">
-                <div class="stat-number">156</div>
-                <div class="stat-label">いいね</div>
-            </div>
-        </div>
-        <!-->
-    </main>
+        </header>
 
-    <!-- Floating Elements -->
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
+        <!-- Dashboard Content -->
+        <main class="dashboard-content">
+            <!-- Event Banner -->
+            {% if active_events %}
+                {% set event = active_events[0] %}
+                <div class="event-banner">
+                    <div class="event-content">
+                        <div class="event-status-badge">🏆 現在開催中</div>
+                        <h2>{{ event.name }}</h2>
+                        <!-- 詳細情報があればここに表示 -->
+                        <p class="event-subtitle">期間: {{ event.start_date.strftime('%m/%d') }} 〜 {{ event.end_date.strftime('%m/%d') }}</p>
+                        <div class="event-meta">
+                            <!-- 残り日数を計算してもよい -->
+                            <span>🕒 残り日数: {{ (event.end_date - event.start_date).days }}日</span>
+                            <!-- <span>🔥 投稿数 142件</span> -->
+                        </div>
+                    </div>
+                    <div class="event-action">
+                        <a href="{{ url_for('event_detail', event_id=event.event_id) }}" class="join-btn">JOIN US</a>
+                    </div>
+                </div>
+            {% else %}
+                <!-- イベントがない場合のデフォルト表示 -->
+                <div class="event-banner fallback">
+                    <div class="event-content">
+                        <h2>次回のイベントをチェック！</h2>
+                        <p class="event-subtitle">現在開催中のイベントはありませんが、過去のイベントを確認できます。</p>
+                    </div>
+                    <div class="event-action">
+                        <a href="{{ url_for('events') }}" class="join-btn">イベント一覧へ</a>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Action Cards -->
+            <div class="action-cards-container">
+                <!-- Post Idea -->
+                <a href="{{ url_for('form') }}" class="action-card post-card">
+                    <div class="card-icon-wrapper">
+                        ✏️
+                    </div>
+                    <div class="card-text">
+                        <h3>新しいアイデアを投稿</h3>
+                        <p>あなたのひらめきを共有しよう</p>
+                    </div>
+                </a>
+
+                <!-- Gacha -->
+                <a href="{{ url_for('gacha') }}" class="action-card gacha-card">
+                    <div class="card-icon-wrapper">
+                        🎲
+                    </div>
+                    <div class="card-text">
+                        <h3>アイデアガチャを回す</h3>
+                        <p>他人のアイデアに便乗しよう！</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Rankings (Timeline Replacement) -->
+            <section class="ranking-section">
+                <div class="section-header">
+                    <h3 class="section-title">📈 ランキング</h3>
+                </div>
+
+                <div class="ranking-list">
+                    {% if rankings %}
+                        {% for user in rankings %}
+                        <div class="ranking-item">
+                            <div class="rank-number {% if user.rank <= 3 %}top-rank{% endif %}">
+                                {% if user.rank == 1 %}🥇{% elif user.rank == 2 %}🥈{% elif user.rank == 3 %}🥉{% else %}{{ user.rank }}{% endif %}
+                            </div>
+                            <div class="rank-user-info">
+                                {% if user.icon_path %}
+                                    {% if user.icon_path.startswith('http') %}
+                                        <img src="{{ user.icon_path }}" alt="{{ user.nickname }}" class="rank-avatar">
+                                    {% else %}
+                                        <!-- uploads/ prefix handling logic same as ranking.html -->
+                                        {% if user.icon_path.startswith('uploads/') %}
+                                            <img src="{{ url_for('uploaded_file', filename=user.icon_path[8:]) }}" alt="{{ user.nickname }}" class="rank-avatar">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename=user.icon_path) }}" alt="{{ user.nickname }}" class="rank-avatar">
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <div class="rank-avatar-placeholder">
+                                        {{ user.nickname[0] }}
+                                    </div>
+                                {% endif %}
+                                <div class="rank-details">
+                                    <div class="rank-name">{{ user.nickname }}</div>
+                                    <!-- <div class="rank-id">@{{ user.user_id }}</div> -->
+                                </div>
+                            </div>
+                            <div class="rank-score">
+                                <div class="score-value">{{ user.post_count }}</div>
+                                <div class="score-label">投稿</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="text-align: center; color: #999; padding: 1rem;">まだランキングデータがありません。</p>
+                    {% endif %}
+                </div>
+            </section>
+
+        </main>
+    </div>
 
     {% include 'notification_panel.html' %}
     <script src="{{ url_for('static', filename='header.js') }}" defer></script>
