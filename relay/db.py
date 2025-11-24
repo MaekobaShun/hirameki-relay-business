@@ -110,107 +110,33 @@ def get_connection():
 
 def create_table():
     with get_connection() as con:
-        # mypageテーブルの作成とマイグレーション
         con.execute("""
             CREATE TABLE IF NOT EXISTS mypage (
                 user_id      VARCHAR(64) PRIMARY KEY,
                 nickname     VARCHAR(32) NOT NULL,
-                password     VARCHAR(128) NOT NULL,
-                email        VARCHAR(128) UNIQUE NOT NULL,
-                icon_path    VARCHAR(255),
-                created_at   TIMESTAMP NOT NULL,
-                ticket_count INTEGER DEFAULT 1 NOT NULL
+                password     TEXT NOT NULL,
+                email        VARCHAR(255) UNIQUE NOT NULL,
+                icon_path    TEXT,
+                created_at   TIMESTAMP NOT NULL
             )
         """)
 
-        # マイグレーション処理
         if using_supabase():
-            # Supabase用のマイグレーション
+            con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS icon_path TEXT")
             try:
-                con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS icon_path VARCHAR(255)")
+                con.execute("ALTER TABLE mypage ALTER COLUMN password TYPE TEXT")
             except Exception:
                 pass
             try:
-                con.execute("ALTER TABLE mypage ADD COLUMN tickets INTEGER DEFAULT 0 NOT NULL")
-            except Exception:
-                pass
-
-            # tickets → ticket_count のリネーム（既存の場合）
-            try:
-                # ticketsカラムが存在するか確認してリネーム
-                con.execute("""
-                    DO $$
-                    BEGIN
-                        IF EXISTS (SELECT 1 FROM information_schema.columns
-                                   WHERE table_name='mypage' AND column_name='tickets') THEN
-                            ALTER TABLE mypage RENAME COLUMN tickets TO ticket_count;
-                        END IF;
-                    END $$;
-                """)
-            except Exception:
-                pass
-
-            # ticket_countカラムが存在しない場合は追加
-            try:
-                con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS ticket_count INTEGER DEFAULT 1 NOT NULL")
-            except Exception:
-                pass
-
-            # デフォルト値を1に設定
-            try:
-                con.execute("ALTER TABLE mypage ALTER COLUMN ticket_count SET DEFAULT 1")
-            except Exception:
-                pass
-
-            # 既存データでNULLの場合は1に更新
-            try:
-                con.execute("UPDATE mypage SET ticket_count = 1 WHERE ticket_count IS NULL OR ticket_count = 0")
-            except Exception:
-                pass
-
-            # カラムの型変更
-            try:
-                con.execute("ALTER TABLE mypage ALTER COLUMN password TYPE VARCHAR(128)")
-            except Exception:
-                pass
-            try:
-                con.execute("ALTER TABLE mypage ALTER COLUMN email TYPE VARCHAR(128)")
-            except Exception:
-                pass
-            try:
-                con.execute("ALTER TABLE mypage ALTER COLUMN icon_path TYPE VARCHAR(255)")
+                con.execute("ALTER TABLE mypage ALTER COLUMN email TYPE VARCHAR(255)")
             except Exception:
                 pass
         else:
-            # SQLite用のマイグレーション
             try:
-                con.execute("ALTER TABLE mypage ADD COLUMN icon_path VARCHAR(255)")
+                con.execute("ALTER TABLE mypage ADD COLUMN icon_path TEXT")
             except Exception:
                 pass
 
-            # ticket_countカラムを追加（存在しない場合）
-            try:
-                con.execute("ALTER TABLE mypage ADD COLUMN ticket_count INTEGER DEFAULT 1")
-            except Exception:
-                pass
-
-            # 既存のticketsカラムからticket_countにデータを移行
-            try:
-                # ticketsカラムがあれば、その値をticket_countにコピー
-                # SQLiteではカラムの存在確認が難しいため、直接更新を試みる
-                # エラーが発生した場合はticketsカラムが存在しないと判断
-                con.execute("UPDATE mypage SET ticket_count = COALESCE(tickets, 1) WHERE ticket_count IS NULL OR ticket_count = 0")
-            except Exception:
-                # ticketsカラムが存在しない場合は何もしない
-                pass
-
-            # NULLや0の値を1に更新（デフォルト値）
-            try:
-                con.execute("UPDATE mypage SET ticket_count = 1 WHERE ticket_count IS NULL OR ticket_count = 0")
-            except Exception:
-                pass
-
-        # ideasテーブルの作成とマイグレーション
         con.execute("""
             CREATE TABLE IF NOT EXISTS ideas (
                 idea_id      VARCHAR(64) PRIMARY KEY,
@@ -218,24 +144,19 @@ def create_table():
                 detail       TEXT NOT NULL,
                 category     VARCHAR(32) NOT NULL,
                 user_id      VARCHAR(64) NOT NULL,
-                created_at   TIMESTAMP NOT NULL,
-                inheritance_flag BOOLEAN DEFAULT FALSE
+                created_at   TIMESTAMP NOT NULL
             )
         """)
 
-        # inheritance_flagカラムの追加
+        # Add inheritance_flag column to ideas table
         if using_supabase():
-            try:
-                con.execute("ALTER TABLE ideas ADD COLUMN IF NOT EXISTS inheritance_flag BOOLEAN DEFAULT FALSE")
-            except Exception:
-                pass
+            con.execute("ALTER TABLE ideas ADD COLUMN IF NOT EXISTS inheritance_flag BOOLEAN DEFAULT FALSE")
         else:
             try:
                 con.execute("ALTER TABLE ideas ADD COLUMN inheritance_flag INTEGER DEFAULT 0")
             except Exception:
                 pass
 
-        # gacha_resultテーブル（変更なし）
         con.execute("""
             CREATE TABLE IF NOT EXISTS gacha_result (
                 result_id    VARCHAR(64) PRIMARY KEY,
@@ -245,7 +166,6 @@ def create_table():
             )
         """)
 
-        # revival_notifyテーブル（変更なし）
         con.execute("""
             CREATE TABLE IF NOT EXISTS revival_notify (
                 notify_id    VARCHAR(64) PRIMARY KEY,
@@ -256,11 +176,10 @@ def create_table():
             )
         """)
 
-        # thanksテーブルの作成とマイグレーション
         con.execute("""
             CREATE TABLE IF NOT EXISTS thanks (
                 thanks_id       VARCHAR(64) PRIMARY KEY,
-                gacha_result_id VARCHAR(64) NOT NULL,
+                gacha_type_id   VARCHAR(64) NOT NULL,
                 sender_id       VARCHAR(64) NOT NULL,
                 receiver_id     VARCHAR(64) NOT NULL,
                 stamp_type      VARCHAR(32) NOT NULL,
@@ -268,53 +187,111 @@ def create_table():
             )
         """)
 
-        # gacha_type_id → gacha_result_id のリネーム
-        if using_supabase():
-            try:
-                # gacha_type_idカラムが存在する場合、リネーム
+        # idea_inheritanceテーブルを作成（child_idea_idはNULLを許可）
+        # 既存のテーブルがある場合は再作成（マイグレーション）
+        try:
+            # 既存のテーブルがあるか確認
+            existing_table = con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='idea_inheritance'"
+            ).fetchone()
+            
+            if existing_table and not using_supabase():
+                # SQLiteの場合：既存のデータを一時テーブルにコピー
+                try:
+                    con.execute("""
+                        CREATE TABLE idea_inheritance_temp (
+                            inheritance_id  VARCHAR(64) PRIMARY KEY,
+                            parent_idea_id  VARCHAR(64),
+                            parent_user_id  VARCHAR(64),
+                            child_idea_id   VARCHAR(64),
+                            child_user_id   VARCHAR(64),
+                            add_point       VARCHAR(64),
+                            add_detail      TEXT,
+                            created_at      TIMESTAMP NOT NULL
+                        )
+                    """)
+                    # 既存のデータをコピー（child_idea_idがNULLの場合は空文字列として扱う）
+                    con.execute("""
+                        INSERT INTO idea_inheritance_temp 
+                        SELECT 
+                            inheritance_id,
+                            parent_idea_id,
+                            parent_user_id,
+                            CASE WHEN child_idea_id IS NULL OR child_idea_id = '' THEN NULL ELSE child_idea_id END,
+                            child_user_id,
+                            add_point,
+                            add_detail,
+                            created_at
+                        FROM idea_inheritance
+                    """)
+                    # 既存のテーブルを削除
+                    con.execute("DROP TABLE idea_inheritance")
+                    # 新しいテーブルを作成（child_idea_idはNULLを許可）
+                    con.execute("""
+                        CREATE TABLE idea_inheritance (
+                            inheritance_id  VARCHAR(64) PRIMARY KEY,
+                            parent_idea_id  VARCHAR(64),
+                            parent_user_id  VARCHAR(64),
+                            child_idea_id   VARCHAR(64),
+                            child_user_id   VARCHAR(64),
+                            add_point       VARCHAR(64),
+                            add_detail      TEXT,
+                            created_at      TIMESTAMP NOT NULL
+                        )
+                    """)
+                    # データを復元
+                    con.execute("""
+                        INSERT INTO idea_inheritance 
+                        SELECT * FROM idea_inheritance_temp
+                    """)
+                    con.execute("DROP TABLE idea_inheritance_temp")
+                except Exception:
+                    # エラーが発生した場合はテーブルを削除して再作成
+                    try:
+                        con.execute("DROP TABLE IF EXISTS idea_inheritance_temp")
+                        con.execute("DROP TABLE idea_inheritance")
+                    except Exception:
+                        pass
+                    con.execute("""
+                        CREATE TABLE idea_inheritance (
+                            inheritance_id  VARCHAR(64) PRIMARY KEY,
+                            parent_idea_id  VARCHAR(64),
+                            parent_user_id  VARCHAR(64),
+                            child_idea_id   VARCHAR(64),
+                            child_user_id   VARCHAR(64),
+                            add_point       VARCHAR(64),
+                            add_detail      TEXT,
+                            created_at      TIMESTAMP NOT NULL
+                        )
+                    """)
+            else:
+                # 新規作成またはSupabaseの場合
                 con.execute("""
-                    DO $$
-                    BEGIN
-                        IF EXISTS (SELECT 1 FROM information_schema.columns
-                                   WHERE table_name='thanks' AND column_name='gacha_type_id') THEN
-                            ALTER TABLE thanks RENAME COLUMN gacha_type_id TO gacha_result_id;
-                        END IF;
-                    END $$;
+                    CREATE TABLE IF NOT EXISTS idea_inheritance (
+                        inheritance_id  VARCHAR(64) PRIMARY KEY,
+                        parent_idea_id  VARCHAR(64),
+                        parent_user_id  VARCHAR(64),
+                        child_idea_id   VARCHAR(64),
+                        child_user_id   VARCHAR(64),
+                        add_point       VARCHAR(64),
+                        add_detail      TEXT,
+                        created_at      TIMESTAMP NOT NULL
+                    )
                 """)
-            except Exception:
-                pass
-        else:
-            # SQLiteでは直接リネームできないため、新しいカラムを追加してデータを移行
-            # gacha_result_idカラムを追加（存在しない場合）
-            try:
-                con.execute("ALTER TABLE thanks ADD COLUMN gacha_result_id VARCHAR(64)")
-            except Exception:
-                pass
-
-            # 既存のgacha_type_idからgacha_result_idにデータを移行
-            try:
-                con.execute("""
-                    UPDATE thanks
-                    SET gacha_result_id = gacha_type_id
-                    WHERE gacha_result_id IS NULL
-                    AND gacha_type_id IS NOT NULL
-                """)
-            except Exception:
-                pass
-
-        # idea_inheritanceテーブルを新規作成
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS idea_inheritance (
-                inheritance_id VARCHAR(64) PRIMARY KEY,
-                parent_idea_id VARCHAR(64) NOT NULL,
-                parent_user_id VARCHAR(64) NOT NULL,
-                child_idea_id  VARCHAR(64) NOT NULL,
-                child_user_id  VARCHAR(64) NOT NULL,
-                add_point      VARCHAR(64) NOT NULL,
-                add_detail     TEXT,
-                created_at     TIMESTAMP NOT NULL
-            )
-        """)
+        except Exception:
+            # エラーが発生した場合は通常の作成を試みる
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS idea_inheritance (
+                    inheritance_id  VARCHAR(64) PRIMARY KEY,
+                    parent_idea_id  VARCHAR(64),
+                    parent_user_id  VARCHAR(64),
+                    child_idea_id   VARCHAR(64),
+                    child_user_id   VARCHAR(64),
+                    add_point       VARCHAR(64),
+                    add_detail      TEXT,
+                    created_at      TIMESTAMP NOT NULL
+                )
+            """)
 
         # eventsテーブルを作成
         con.execute("""
@@ -389,98 +366,20 @@ def fetch_random_item(exclude_user_id=None, category=None):
 
 def get_user_by_email(email: str):
     with get_connection() as con:
-        # ticket_count を優先し、存在しない場合は tickets を参照
-        try:
-            row = con.execute(
-                "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(ticket_count, tickets, 1) FROM mypage WHERE email = ?",
-                (email,)
-            ).fetchone()
-        except Exception:
-            try:
-                row = con.execute(
-                    "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(tickets, 1) FROM mypage WHERE email = ?",
-                    (email,)
-                ).fetchone()
-            except Exception:
-                row = con.execute(
-                    "SELECT user_id, nickname, password, email, icon_path, created_at, 1 FROM mypage WHERE email = ?",
-                    (email,)
-                ).fetchone()
+        row = con.execute(
+            "SELECT user_id, nickname, password, email, icon_path, created_at FROM mypage WHERE email = ?",
+            (email,)
+        ).fetchone()
     return row
 
 
 def get_user_by_user_id(user_id: str):
     with get_connection() as con:
-        # ticket_count を優先し、存在しない場合は tickets を参照
-        try:
-            row = con.execute(
-                "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(ticket_count, tickets, 1) FROM mypage WHERE user_id = ?",
-                (user_id,)
-            ).fetchone()
-        except Exception:
-            try:
-                row = con.execute(
-                    "SELECT user_id, nickname, password, email, icon_path, created_at, COALESCE(tickets, 1) FROM mypage WHERE user_id = ?",
-                    (user_id,)
-                ).fetchone()
-            except Exception:
-                row = con.execute(
-                    "SELECT user_id, nickname, password, email, icon_path, created_at, 1 FROM mypage WHERE user_id = ?",
-                    (user_id,)
-                ).fetchone()
+        row = con.execute(
+            "SELECT user_id, nickname, password, email, icon_path, created_at FROM mypage WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
     return row
-
-
-def get_user_tickets(user_id: str) -> int:
-    """ユーザーのチケット数を取得（ticket_count または tickets を参照）"""
-    with get_connection() as con:
-        # まず ticket_count を試し、存在しない場合は tickets を参照
-        try:
-            row = con.execute(
-                "SELECT COALESCE(ticket_count, tickets, 1) FROM mypage WHERE user_id = ?",
-                (user_id,)
-            ).fetchone()
-        except Exception:
-            # ticket_count カラムが存在しない場合
-            try:
-                row = con.execute(
-                    "SELECT COALESCE(tickets, 1) FROM mypage WHERE user_id = ?",
-                    (user_id,)
-                ).fetchone()
-            except Exception:
-                return 1  # デフォルト値
-    return row[0] if row else 1
-
-
-def update_user_tickets(user_id: str, tickets: int) -> None:
-    """ユーザーのチケット数を更新（ticket_count を優先）"""
-    with get_connection() as con:
-        # ticket_count カラムが存在する場合はそれを使用、なければ tickets
-        try:
-            con.execute(
-                "UPDATE mypage SET ticket_count = ? WHERE user_id = ?",
-                (tickets, user_id)
-            )
-        except Exception:
-            # ticket_count カラムが存在しない場合
-            try:
-                con.execute(
-                    "UPDATE mypage SET tickets = ? WHERE user_id = ?",
-                    (tickets, user_id)
-                )
-            except Exception:
-                pass
-        # SQLiteの場合は明示的にコミット（SupabaseConnectionは__exit__で自動コミット）
-        if not using_supabase():
-            con.commit()
-
-
-def add_user_tickets(user_id: str, amount: int) -> int:
-    """ユーザーのチケットを増やす（負の値も可）"""
-    current_tickets = get_user_tickets(user_id)
-    new_tickets = max(0, current_tickets + amount)  # 0以下にはならない
-    update_user_tickets(user_id, new_tickets)
-    return new_tickets
 
 
 def insert_user(user_id: str, nickname: str, password_hash: str, email: str, icon_path: str | None, created_at: str) -> None:
@@ -507,6 +406,25 @@ def insert_user(user_id: str, nickname: str, password_hash: str, email: str, ico
         # SQLiteの場合は明示的にコミット（SupabaseConnectionは__exit__で自動コミット）
         if not using_supabase():
             con.commit()
+
+
+def get_user_tickets(user_id: str) -> int:
+    """ユーザーのチケット数を取得"""
+    with get_connection() as con:
+        try:
+            row = con.execute(
+                "SELECT COALESCE(ticket_count, tickets, 0) FROM mypage WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()
+        except Exception:
+            try:
+                row = con.execute(
+                    "SELECT COALESCE(tickets, 0) FROM mypage WHERE user_id = ?",
+                    (user_id,)
+                ).fetchone()
+            except Exception:
+                return 0
+    return row[0] if row and row[0] is not None else 0
 
 
 # ==================== アイデア統計関連の関数 ====================

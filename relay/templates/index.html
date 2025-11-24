@@ -1,34 +1,17 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ひらめきリレー - ハブ</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
 </head>
+
 <body>
     <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <div class="logo-icon">💡</div>
-                <h1 class="logo-text">ひらめきリレー</h1>
-            </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <div class="welcome-text">ようこそ</div>
-                    <div class="user-name">{{ user_name }}さん</div>
-                </div>
-                <!--
-                <div class="points-badge">
-                    <span class="sparkle">✨</span>
-                    <span>1250</span>
-                </div>                
-                -->
-
-            </div>
-        </div>
-    </header>
+    <!-- Header -->
+    {% include 'header.html' %}
 
     <!-- Main Content -->
     <main class="main-content">
@@ -99,5 +82,9 @@
     <!-- Floating Elements -->
     <div class="floating-sparkle sparkle-1">✨</div>
     <div class="floating-sparkle sparkle-2">✨</div>
+
+    {% include 'notification_panel.html' %}
+    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
 </body>
+
 </html>
