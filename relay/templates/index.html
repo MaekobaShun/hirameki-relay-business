@@ -4,86 +4,542 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ひらめきリレー - ハブ</title>
+    <title>ひらめきリレー - ホーム</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --header-height: 70px;
+            --primary-color: #7c3aed;
+            --bg-color: #f8fafc;
+        }
+
+        body {
+            display: flex;
+            background-color: var(--bg-color);
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            position: fixed;
+            left: 0;
+            top: 0;
+            border-right: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 2.5rem;
+            padding-left: 0.5rem;
+            text-decoration: none;
+        }
+
+        .logo-icon-sm {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text-sidebar {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background-color: #f1f5f9;
+            color: var(--primary-color);
+        }
+
+        .nav-icon {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Wrapper */
+        .main-wrapper {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        /* Top Header */
+        .top-header {
+            height: var(--header-height);
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #64748b;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-profile-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            padding-right: 1rem;
+            border-radius: 999px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .user-avatar-xs {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #e2e8f0;
+        }
+        
+        .user-avatar-xs img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Dashboard Content */
+        .dashboard-content {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Banner */
+        .event-banner {
+            width: 100%;
+            height: 200px;
+            border-radius: 1.5rem;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            text-decoration: none;
+            color: white;
+            box-shadow: 0 10px 30px -10px rgba(49, 46, 129, 0.5);
+        }
+
+        .banner-content {
+            z-index: 2;
+            max-width: 600px;
+        }
+
+        .banner-tag {
+            background: #f59e0b;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .banner-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        
+        .banner-subtitle {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .banner-bg-decoration {
+            position: absolute;
+            right: -50px;
+            top: -50px;
+            font-size: 15rem;
+            opacity: 0.1;
+            transform: rotate(15deg);
+        }
+
+        /* Action Buttons Grid */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .big-action-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 200px;
+            text-decoration: none;
+            color: #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+        }
+
+        .big-action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .action-icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .bg-orange-light { background: #fff7ed; color: #f97316; }
+        .bg-purple-light { background: #f3e8ff; color: #a855f7; }
+
+        .action-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+
+        /* Ranking Section */
+        .ranking-section {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .rank-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .rank-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 1rem;
+            background: #f8fafc;
+            transition: background 0.2s;
+        }
+
+        .rank-item:hover {
+            background: #f1f5f9;
+        }
+
+        .rank-position {
+            width: 40px;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+        
+        .rank-1 { color: #eab308; }
+        .rank-2 { color: #94a3b8; }
+        .rank-3 { color: #b45309; }
+
+        .rank-user-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: 0.5rem;
+        }
+
+        .rank-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .rank-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .rank-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rank-name {
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .rank-score {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .rank-score strong {
+            color: var(--primary-color);
+        }
+
+        .view-all-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            :root { --sidebar-width: 80px; }
+            .sidebar { padding: 1rem 0.5rem; align-items: center; }
+            .logo-text-sidebar, .nav-item span:not(.nav-icon) { display: none; }
+            .nav-item { justify-content: center; padding: 1rem; }
+            .logo-area { margin-bottom: 2rem; justify-content: center; padding-left: 0; }
+            .main-wrapper { width: calc(100% - 80px); }
+        }
+
+        @media (max-width: 768px) {
+            .action-grid { grid-template-columns: 1fr; }
+            .top-header { padding: 0 1rem; }
+            .dashboard-content { padding: 1rem; }
+        }
+    </style>
 </head>
 
 <body>
-    <!-- Header -->
-    <!-- Header -->
-    {% include 'header.html' %}
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="{{ url_for('index') }}" class="logo-area">
+            <div class="logo-icon-sm">💡</div>
+            <span class="logo-text-sidebar">ひらめきリレー</span>
+        </a>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Welcome Section -->
-        <div class="welcome-section">
-            <h2 class="main-title">何をしますか?</h2>
-            <p class="main-subtitle">あなたのひらめきで、誰かのストーリーをつなげよう</p>
-        </div>
-
-        <!-- Action Cards -->
-        <div class="cards-grid">
-            <!-- 投稿する -->
-            <a href="{{ url_for('form') }}" class="action-card card-blue">
-                <div class="card-icon">✍️</div>
-                <h3 class="card-title">投稿する</h3>
-                <p class="card-subtitle">あなたのひらめきを共有</p>
-                <div class="card-arrow">→</div>
+        <nav class="nav-menu">
+            <a href="{{ url_for('index') }}" class="nav-item active">
+                <span class="nav-icon">🏠</span>
+                <span>ホーム</span>
             </a>
-
-            <!-- ガチャを引く -->
-            <a href="{{ url_for('gacha') }}" class="action-card card-purple">
-                <div class="card-icon">🎲</div>
-                <h3 class="card-title">ガチャを引く</h3>
-                <p class="card-subtitle">新しい出会いを探そう</p>
-                <div class="card-arrow">→</div>
+            <a href="{{ url_for('form') }}" class="nav-item">
+                <span class="nav-icon">✍️</span>
+                <span>投稿する</span>
             </a>
-
-            <!-- マイページ -->
-            <a href="{{ url_for('mypage') }}" class="action-card card-orange">
-                <div class="card-icon">👤</div>
-                <h3 class="card-title">マイページ</h3>
-                <p class="card-subtitle">あなたの活動を確認</p>
-                <div class="card-arrow">→</div>
+            <a href="{{ url_for('mypage') }}" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span>分析レポート</span>
             </a>
-        </div>
-
-        <!-- ランキングリンク -->
-        <div class="ranking-link-container">
-            <a href="{{ url_for('ranking') }}" class="ranking-link">📊 ランキングを見る</a>
-        </div>
-
-        <!-- イベント導線 -->
-        <div class="event-link-container" style="margin-top: 2rem;">
-            <a href="{{ url_for('events') }}" class="event-link" style="display: inline-block; padding: 1rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; text-decoration: none; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">
-                🎉 期間限定イベント
+            <a href="{{ url_for('mypage') }}" class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                <span>設定</span>
             </a>
-        </div>
+        </nav>
+    </aside>
 
-        <!-- 投稿数等いれたいとき用 -->
-        <!--
-        <div class="stats-container">
-            <div class="stat-item">
-                <div class="stat-number">12</div>
-                <div class="stat-label">投稿数</div>
+    <div class="main-wrapper">
+        <!-- Top Header -->
+        <header class="header top-header">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="ユーザーやランキングを検索..." disabled>
             </div>
-            <div class="stat-item">
-                <div class="stat-number">48</div>
-                <div class="stat-label">リレー参加</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">156</div>
-                <div class="stat-label">いいね</div>
-            </div>
-        </div>
-        <!-->
-    </main>
 
-    <!-- Floating Elements -->
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
+            <div class="header-actions">
+                <a href="{{ url_for('mypage') }}" class="user-profile-pill">
+                    <span style="color: #f59e0b; font-size: 0.9rem;">★ Lv.12</span>
+                </a>
+                
+                <!-- Notification Bell (Reusing logic) -->
+                <button class="notification-bell" type="button" aria-label="通知を開く" aria-expanded="false" id="notification-bell" style="border:none; background:none; padding:0; width:auto; height:auto;">
+                    <span class="bell-icon" style="font-size: 1.5rem;">🔔</span>
+                    {% if revival_notifications and revival_notifications|length > 0 %}
+                    <span class="notification-badge">{{ revival_notifications|length }}</span>
+                    {% endif %}
+                </button>
 
+                <a href="{{ url_for('mypage') }}" class="user-avatar-xs">
+                     <!-- Fallback icon or user icon -->
+                    <img src="{{ url_for('static', filename='images/icon.png') }}" alt="User">
+                </a>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="dashboard-content">
+            <!-- Banner -->
+            <a href="{{ url_for('events') }}" class="event-banner">
+                <div class="banner-content">
+                    <div class="banner-tag">開催中 SEASON 10</div>
+                    <h2 class="banner-title">10月度 アイデアソン</h2>
+                    <p class="banner-subtitle">「業務効率化」の常識を覆す、クレイジーなアイデア求む。</p>
+                </div>
+                <div class="banner-bg-decoration">💡</div>
+            </a>
+
+            <!-- Action Buttons -->
+            <div class="action-grid">
+                <a href="{{ url_for('form') }}" class="big-action-card">
+                    <div class="action-icon-circle bg-orange-light">✏️</div>
+                    <h3 class="action-title">アイデアを投稿する</h3>
+                    <p style="color:#64748b;">あなたのひらめきをプールに投げ込もう</p>
+                </a>
+                
+                <a href="{{ url_for('gacha') }}" class="big-action-card">
+                    <div class="action-icon-circle bg-purple-light">🎲</div>
+                    <h3 class="action-title">アイデアガチャ</h3>
+                    <p style="color:#64748b;">運命のアイデアを引き当てて、リレーをつなぐ</p>
+                </a>
+            </div>
+
+            <!-- Ranking Section -->
+            <section class="ranking-section">
+                <div class="section-header">
+                    <h3 class="section-title">🏆 ランキング & トレンド</h3>
+                    <a href="{{ url_for('ranking') }}" class="view-all-link">全ランキングを見る</a>
+                </div>
+
+                <div class="section-header" style="margin-bottom: 1rem;">
+                     <div style="display:flex; gap:1rem; align-items:center;">
+                        <h4 style="font-size:1rem; color:#64748b;">👑 今月のMVP候補</h4>
+                     </div>
+                </div>
+
+                <div class="rank-list">
+                    {% if rankings %}
+                        {% for ranking in rankings %}
+                        <div class="rank-item">
+                            <div class="rank-position rank-{{ ranking.rank }}">{{ ranking.rank }}</div>
+                            <div class="rank-user-info">
+                                <div class="rank-avatar">
+                                    {% if ranking.icon_path %}
+                                        {% if ranking.icon_path.startswith('uploads/') %}
+                                            <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}">
+                                        {% elif ranking.icon_path.startswith('http') %}
+                                            <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename=ranking.icon_path) }}" alt="{{ ranking.nickname }}">
+                                        {% endif %}
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='images/icon.png') }}" alt="User">
+                                    {% endif %}
+                                </div>
+                                <div class="rank-details">
+                                    <div class="rank-name">{{ ranking.nickname }}</div>
+                                    <div class="rank-score">累計貢献度: <strong>{{ ranking.post_count * 10 + 12 }} pt</strong></div>
+                                </div>
+                            </div>
+                            {% if ranking.rank == 1 %}
+                            <span style="background:#fff1f2; color:#e11d48; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; font-weight:bold;">🔥 HOT</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="text-align:center; color:#94a3b8; padding:2rem;">まだランキングデータがありません。</p>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification Panel Include -->
     {% include 'notification_panel.html' %}
+    
     <script src="{{ url_for('static', filename='header.js') }}" defer></script>
 </body>
 

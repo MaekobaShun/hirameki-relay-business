@@ -193,6 +193,21 @@ def index():
             """
         ).fetchall()
 
+        # 投稿数でユーザーをランキング（投稿数が多い順）
+        ranking_rows = con.execute("""
+            SELECT 
+                u.user_id,
+                u.nickname,
+                u.icon_path,
+                COUNT(i.idea_id) as post_count
+            FROM mypage u
+            LEFT JOIN ideas i ON u.user_id = i.user_id
+            GROUP BY u.user_id, u.nickname, u.icon_path
+            HAVING COUNT(i.idea_id) > 0
+            ORDER BY post_count DESC, u.created_at ASC
+            LIMIT 10
+        """).fetchall()
+
     items = []
 
     for row in db_items:
@@ -206,11 +221,22 @@ def index():
             'nickname': row[6]
         })
     
+    rankings = []
+    for rank, row in enumerate(ranking_rows, start=1):
+        rankings.append({
+            'rank': rank,
+            'user_id': row[0],
+            'nickname': row[1],
+            'icon_path': row[2],
+            'post_count': row[3]
+        })
+    
     user_name = session['nickname']
 
     return render_template(
         'index.html',
         items=items,
+        rankings=rankings,
         user_name=user_name
     )
 
