@@ -129,6 +129,10 @@ def create_table():
                 con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS icon_path VARCHAR(255)")
             except Exception:
                 pass
+            try:
+                con.execute("ALTER TABLE mypage ADD COLUMN tickets INTEGER DEFAULT 0 NOT NULL")
+            except Exception:
+                pass
 
             # tickets → ticket_count のリネーム（既存の場合）
             try:

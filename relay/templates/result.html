@@ -6,7 +6,27 @@
         <title>ガチャ結果 - ひらめきリレー</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='gacha.css') }}">
         <script src="{{ url_for('static', filename='header.js') }}" defer></script>
+        <script>
+            // チケット数を更新する関数
+            function updateTicketCount(newCount) {
+                const ticketCountEl = document.getElementById('ticket-count');
+                const spinAgainButton = document.getElementById('spin-again-button');
+                if (ticketCountEl) {
+                    ticketCountEl.textContent = newCount;
+                }
+                if (spinAgainButton) {
+                    spinAgainButton.disabled = newCount < 1;
+                }
+            }
+            
+            // ページロード時にチケット数を更新
+            window.addEventListener('load', function() {
+                const currentTickets = {{ tickets }};
+                updateTicketCount(currentTickets);
+            });
+        </script>
     </head>
     <body>
         <header class="header">
@@ -36,6 +56,11 @@
             <section class="result-wrapper">
                 <div class="result-icon">🎉</div>
                 <h2 class="result-title">ガチャ結果</h2>
+                <div class="ticket-display">
+                    <span class="ticket-label">🎫 ガチャチケット</span>
+                    <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
+                    <span class="ticket-unit">枚</span>
+                </div>
 
                 {% with messages = get_flashed_messages() %}
                     {% if messages %}
@@ -64,7 +89,7 @@
                         {% if request.args.get('category') %}
                             <input type="hidden" name="category" value="{{ request.args.get('category') }}">
                         {% endif %}
-                        <button type="submit" class="result-button secondary">もう一度回す</button>
+                        <button type="submit" class="result-button secondary" id="spin-again-button" {% if tickets < 1 %}disabled{% endif %}>もう一度回す</button>
                     </form>
                     <a href="{{ url_for('gacha') }}" class="result-button">カテゴリ選択画面に戻る</a>
                 </div>

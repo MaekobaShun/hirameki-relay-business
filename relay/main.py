@@ -14,6 +14,8 @@ from relay.db import (
     get_user_by_email,
     get_user_by_user_id,
     insert_user,
+    get_user_tickets,
+    add_user_tickets,
 )
 import uuid
 from datetime import datetime
@@ -193,6 +195,11 @@ def post():
             "INSERT INTO ideas VALUES (?, ?, ?, ?, ?, ?)",
             [idea_id, title, detail, category, user_id, created_at]
         )
+        con.commit()
+    
+    # アイデア投稿時にチケット+1枚付与
+    new_tickets = add_user_tickets(user_id, 1)
+    session['tickets'] = new_tickets
 
     return redirect(url_for('index'))
 
@@ -346,6 +353,7 @@ def signup():
             session['nickname'] = nickname
             session['email'] = email
             session['icon_path'] = icon_path
+            session['tickets'] = 1  # 初回登録時にチケット1枚付与
             return redirect(url_for('index'))
 
     return render_template(
@@ -402,7 +410,8 @@ def login():
             session['user_id'] = user_row[0]
             session['nickname'] = user_row[1]
             session['email'] = user_row[3]
-            session['icon_path'] = user_row[4]
+            session['icon_path'] = user_row[4] if len(user_row) > 4 else None
+            session['tickets'] = user_row[6] if len(user_row) > 6 else 0
 
             if next_url:
                 return redirect(next_url)
@@ -427,7 +436,10 @@ def logout():
 @login_required
 def gacha():
     selected_category = request.args.get("category", "")
-    return render_template("gacha.html", selected_category=selected_category)
+    user_id = session.get('user_id')
+    tickets = get_user_tickets(user_id) if user_id else 0
+    session['tickets'] = tickets  # セッションも更新
+    return render_template("gacha.html", selected_category=selected_category, tickets=tickets)
 
 # ランダムに1つのアイテムを表示するルート
 @app.route('/result')
@@ -435,6 +447,9 @@ def gacha():
 def result():
     idea = None
     idea_id = session.pop('last_gacha_idea_id', None)
+    user_id = session.get('user_id')
+    tickets = get_user_tickets(user_id) if user_id else 0
+    session['tickets'] = tickets  # セッションも更新
 
     if idea_id:
         with get_connection() as con:
@@ -443,7 +458,7 @@ def result():
                 (idea_id,)
             ).fetchone()
 
-    return render_template("result.html", item=idea)
+    return render_template("result.html", item=idea, tickets=tickets)
 
 # ガチャを回して結果ページにリダイレクトするルート
 @app.route('/spin')
@@ -451,6 +466,12 @@ def result():
 def spin():
     current_user_id = session.get('user_id')
     category = request.args.get('category')  # 💡カテゴリを取得
+
+    # チケットチェック
+    tickets = get_user_tickets(current_user_id)
+    if tickets < 1:
+        flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
+        return redirect(url_for('gacha', category=category))
 
     item = fetch_random_item(
         exclude_user_id=current_user_id,
@@ -465,6 +486,10 @@ def spin():
     idea_id = item[0]
     author_id = item[4]
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # チケットを1枚消費
+    new_tickets = add_user_tickets(current_user_id, -1)
+    session['tickets'] = new_tickets
 
     with get_connection() as con:
         con.execute(
