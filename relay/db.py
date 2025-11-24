@@ -1,5 +1,6 @@
 import os
 import random
+from datetime import datetime
 
 USE_SUPABASE = bool(
     os.environ.get('SUPABASE_DATABASE_URL')
@@ -315,6 +316,52 @@ def create_table():
             )
         """)
 
+        # eventsテーブルを作成
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                event_id       VARCHAR(64) PRIMARY KEY,
+                name           VARCHAR(128) NOT NULL,
+                password_hash  VARCHAR(128) NOT NULL,
+                start_date     TIMESTAMP NOT NULL,
+                end_date       TIMESTAMP NOT NULL,
+                created_at     TIMESTAMP NOT NULL,
+                created_by     VARCHAR(64) NOT NULL,
+                status         VARCHAR(16) DEFAULT 'upcoming' NOT NULL,
+                is_public      BOOLEAN DEFAULT FALSE NOT NULL
+            )
+        """)
+
+        # is_publicカラムの追加（マイグレーション）
+        if using_supabase():
+            try:
+                con.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE NOT NULL")
+            except Exception:
+                pass
+        else:
+            try:
+                con.execute("ALTER TABLE events ADD COLUMN is_public INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
+        # event_participantsテーブルを作成
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS event_participants (
+                event_id       VARCHAR(64) NOT NULL,
+                user_id        VARCHAR(64) NOT NULL,
+                joined_at      TIMESTAMP NOT NULL,
+                PRIMARY KEY (event_id, user_id)
+            )
+        """)
+
+        # event_ideasテーブルを作成（イベント中に作成された投稿を追跡）
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS event_ideas (
+                event_id       VARCHAR(64) NOT NULL,
+                idea_id        VARCHAR(64) NOT NULL,
+                PRIMARY KEY (event_id, idea_id)
+            )
+        """)
+
 
 def fetch_items(exclude_user_id=None, category=None):
     with get_connection() as con:
@@ -458,5 +505,254 @@ def insert_user(user_id: str, nickname: str, password_hash: str, email: str, ico
                     (user_id, nickname, password_hash, email, icon_path, created_at)
                 )
         # SQLiteの場合は明示的にコミット（SupabaseConnectionは__exit__で自動コミット）
+        if not using_supabase():
+            con.commit()
+
+
+# ==================== イベント関連の関数 ====================
+
+def get_event_status(start_date: datetime, end_date: datetime) -> str:
+    """イベントの状態を取得（upcoming, active, ended）"""
+    now = datetime.now()
+    if now < start_date:
+        return 'upcoming'
+    elif now > end_date:
+        return 'ended'
+    else:
+        return 'active'
+
+
+def create_event(event_id: str, name: str, password_hash: str, start_date: datetime, end_date: datetime, created_by: str, is_public: bool = False) -> None:
+    """イベントを作成"""
+    with get_connection() as con:
+        status = get_event_status(start_date, end_date)
+        con.execute(
+            "INSERT INTO events (event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (event_id, name, password_hash, start_date, end_date, datetime.now(), created_by, status, is_public)
+        )
+        if not using_supabase():
+            con.commit()
+
+
+def get_event(event_id: str):
+    """イベントを取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE event_id = ?",
+            (event_id,)
+        ).fetchone()
+    return row
+
+
+def get_all_events():
+    """すべてのイベントを取得"""
+    with get_connection() as con:
+        rows = con.execute(
+            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events ORDER BY start_date DESC"
+        ).fetchall()
+    return rows
+
+
+def get_public_events():
+    """公開されているイベントを取得"""
+    with get_connection() as con:
+        rows = con.execute(
+            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE is_public = 1 ORDER BY start_date DESC"
+        ).fetchall()
+    return rows
+
+
+def get_active_events():
+    """開催中のイベントを取得"""
+    now = datetime.now()
+    with get_connection() as con:
+        rows = con.execute(
+            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE start_date <= ? AND end_date >= ? ORDER BY start_date DESC",
+            (now, now)
+        ).fetchall()
+    return rows
+
+
+def update_event(event_id: str, name: str = None, start_date: datetime = None, end_date: datetime = None, is_public: bool = None) -> None:
+    """イベント情報を更新"""
+    with get_connection() as con:
+        updates = []
+        params = []
+        
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        
+        if start_date is not None:
+            updates.append("start_date = ?")
+            params.append(start_date)
+        
+        if end_date is not None:
+            updates.append("end_date = ?")
+            params.append(end_date)
+        
+        if is_public is not None:
+            updates.append("is_public = ?")
+            params.append(is_public)
+        
+        # 日時が変更された場合はstatusを再計算
+        if start_date is not None or end_date is not None:
+            event_row = get_event(event_id)
+            if event_row:
+                current_start = start_date if start_date else event_row[3]
+                current_end = end_date if end_date else event_row[4]
+                if isinstance(current_start, str):
+                    current_start = _parse_datetime(current_start)
+                if isinstance(current_end, str):
+                    current_end = _parse_datetime(current_end)
+                status = get_event_status(current_start, current_end)
+                updates.append("status = ?")
+                params.append(status)
+        
+        if updates:
+            params.append(event_id)
+            query = f"UPDATE events SET {', '.join(updates)} WHERE event_id = ?"
+            con.execute(query, tuple(params))
+            if not using_supabase():
+                con.commit()
+
+
+def delete_event(event_id: str) -> None:
+    """イベントを削除（関連データも削除）"""
+    with get_connection() as con:
+        # 関連データを削除
+        con.execute("DELETE FROM event_participants WHERE event_id = ?", (event_id,))
+        con.execute("DELETE FROM event_ideas WHERE event_id = ?", (event_id,))
+        # イベント本体を削除
+        con.execute("DELETE FROM events WHERE event_id = ?", (event_id,))
+        if not using_supabase():
+            con.commit()
+
+
+def join_event(event_id: str, user_id: str) -> bool:
+    """イベントに参加（既に参加している場合はFalse）"""
+    with get_connection() as con:
+        # 既に参加しているかチェック
+        existing = con.execute(
+            "SELECT 1 FROM event_participants WHERE event_id = ? AND user_id = ?",
+            (event_id, user_id)
+        ).fetchone()
+        if existing:
+            return False
+        
+        con.execute(
+            "INSERT INTO event_participants (event_id, user_id, joined_at) VALUES (?, ?, ?)",
+            (event_id, user_id, datetime.now())
+        )
+        if not using_supabase():
+            con.commit()
+    return True
+
+
+def is_event_participant(event_id: str, user_id: str) -> bool:
+    """ユーザーがイベントに参加しているかチェック"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT 1 FROM event_participants WHERE event_id = ? AND user_id = ?",
+            (event_id, user_id)
+        ).fetchone()
+    return row is not None
+
+
+def get_event_participants(event_id: str):
+    """イベントの参加者一覧を取得"""
+    with get_connection() as con:
+        rows = con.execute("""
+            SELECT ep.user_id, ep.joined_at, u.nickname, u.icon_path
+            FROM event_participants ep
+            JOIN mypage u ON ep.user_id = u.user_id
+            WHERE ep.event_id = ?
+            ORDER BY ep.joined_at ASC
+        """, (event_id,)).fetchall()
+    return rows
+
+
+def add_event_idea(event_id: str, idea_id: str) -> None:
+    """イベント中に作成されたアイデアを記録"""
+    with get_connection() as con:
+        try:
+            con.execute(
+                "INSERT INTO event_ideas (event_id, idea_id) VALUES (?, ?)",
+                (event_id, idea_id)
+            )
+            if not using_supabase():
+                con.commit()
+        except Exception:
+            # 既に存在する場合は無視
+            pass
+
+
+def get_event_ideas(event_id: str):
+    """イベント中に作成されたアイデアを取得"""
+    with get_connection() as con:
+        rows = con.execute("""
+            SELECT ei.idea_id, i.title, i.detail, i.category, i.user_id, i.created_at, u.nickname
+            FROM event_ideas ei
+            JOIN ideas i ON ei.idea_id = i.idea_id
+            LEFT JOIN mypage u ON i.user_id = u.user_id
+            WHERE ei.event_id = ?
+            ORDER BY i.created_at DESC
+        """, (event_id,)).fetchall()
+    return rows
+
+
+def get_event_ranking(event_id: str):
+    """イベント中のランキング（投稿数）を取得"""
+    with get_connection() as con:
+        rows = con.execute("""
+            SELECT 
+                u.user_id,
+                u.nickname,
+                u.icon_path,
+                COUNT(i.idea_id) as post_count
+            FROM event_participants ep
+            JOIN mypage u ON ep.user_id = u.user_id
+            LEFT JOIN event_ideas ei ON ep.event_id = ei.event_id
+            LEFT JOIN ideas i ON ei.idea_id = i.idea_id AND i.user_id = u.user_id
+            WHERE ep.event_id = ?
+            GROUP BY u.user_id, u.nickname, u.icon_path
+            HAVING COUNT(i.idea_id) > 0
+            ORDER BY post_count DESC, ep.joined_at ASC
+        """, (event_id,)).fetchall()
+    return rows
+
+
+def _parse_datetime(date_value):
+    """データベースから取得した日時をdatetimeオブジェクトに変換"""
+    if isinstance(date_value, datetime):
+        return date_value
+    if isinstance(date_value, str):
+        # 複数のフォーマットを試す
+        for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f']:
+            try:
+                return datetime.strptime(date_value, fmt)
+            except ValueError:
+                continue
+        # パースに失敗した場合は現在時刻を返す
+        return datetime.now()
+    return date_value
+
+
+def update_event_statuses() -> None:
+    """全イベントの状態を更新"""
+    with get_connection() as con:
+        events = con.execute(
+            "SELECT event_id, start_date, end_date FROM events"
+        ).fetchall()
+        now = datetime.now()
+        for event_id, start_date, end_date in events:
+            # 文字列の場合はdatetimeオブジェクトに変換
+            start_date = _parse_datetime(start_date)
+            end_date = _parse_datetime(end_date)
+            status = get_event_status(start_date, end_date)
+            con.execute(
+                "UPDATE events SET status = ? WHERE event_id = ?",
+                (status, event_id)
+            )
         if not using_supabase():
             con.commit()
