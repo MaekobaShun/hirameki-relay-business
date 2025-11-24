@@ -1,102 +1,61 @@
 <!DOCTYPE html>
 <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ガチャ結果 - ひらめきリレー</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='gacha.css') }}">
-        <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-        <script>
-            // チケット数を更新する関数
-            function updateTicketCount(newCount) {
-                const ticketCountEl = document.getElementById('ticket-count');
-                const spinAgainButton = document.getElementById('spin-again-button');
-                if (ticketCountEl) {
-                    ticketCountEl.textContent = newCount;
-                }
-                if (spinAgainButton) {
-                    spinAgainButton.disabled = newCount < 1;
-                }
-            }
-            
-            // ページロード時にチケット数を更新
-            window.addEventListener('load', function() {
-                const currentTickets = {{ tickets }};
-                updateTicketCount(currentTickets);
-            });
-        </script>
-    </head>
-    <body>
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <div class="logo-icon">💡</div>
-                    <h1 class="logo-text">ひらめきリレー</h1>
-                </div>
-                <div class="header-right">
-                    <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <nav class="mypage-nav">
-                        <a href="{{ url_for('index') }}">ホーム</a>
-                        <a href="{{ url_for('form') }}">投稿</a>
-                        <a href="{{ url_for('gacha') }}" class="active">ガチャ</a>
-                        <a href="{{ url_for('mypage') }}">マイページ</a>
-                        <a href="{{ url_for('ranking') }}">ランキング</a>
-                    </nav>
-                </div>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガチャ結果 - ひらめきリレー</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
+    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
+</head>
+
+<body>
+    {% include 'header.html' %}
+
+    <main class="result-main">
+        <section class="result-wrapper">
+            <div class="result-icon">🎉</div>
+            <h2 class="result-title">ガチャ結果</h2>
+
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="result-flash">
+                {% for message in messages %}
+                <p>{{ message }}</p>
+                {% endfor %}
             </div>
-        </header>
+            {% endif %}
+            {% endwith %}
 
-        <main class="result-main">
-            <section class="result-wrapper">
-                <div class="result-icon">🎉</div>
-                <h2 class="result-title">ガチャ結果</h2>
-                <div class="ticket-display">
-                    <span class="ticket-label">🎫 ガチャチケット</span>
-                    <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
-                    <span class="ticket-unit">枚</span>
-                </div>
+            {% if item %}
+            <article class="result-card">
+                <h3 class="result-card__title">{{ item[1] }}</h3>
+                <p class="result-card__detail">{{ item[2] }}</p>
+                <span class="result-card__category">📁 {{ item[3] }}</span>
+            </article>
+            {% else %}
+            <div class="result-card">
+                <p class="result-empty">データがありません。</p>
+            </div>
+            {% endif %}
 
-                {% with messages = get_flashed_messages() %}
-                    {% if messages %}
-                        <div class="result-flash">
-                            {% for message in messages %}
-                                <p>{{ message }}</p>
-                            {% endfor %}
-                        </div>
+            <div class="result-actions">
+                <form action="{{ url_for('spin') }}" method="get" class="result-action-form">
+                    {% if request.args.get('category') %}
+                    <input type="hidden" name="category" value="{{ request.args.get('category') }}">
                     {% endif %}
-                {% endwith %}
+                    <button type="submit" class="result-button secondary">もう一度回す</button>
+                </form>
+                <a href="{{ url_for('gacha') }}" class="result-button">カテゴリ選択画面に戻る</a>
+            </div>
+        </section>
+    </main>
 
-                {% if item %}
-                    <article class="result-card">
-                        <h3 class="result-card__title">{{ item[1] }}</h3>
-                        <p class="result-card__detail">{{ item[2] }}</p>
-                        <span class="result-card__category">📁 {{ item[3] }}</span>
-                    </article>
-                {% else %}
-                    <div class="result-card">
-                        <p class="result-empty">データがありません。</p>
-                    </div>
-                {% endif %}
+    <div class="floating-sparkle sparkle-1">✨</div>
+    <div class="floating-sparkle sparkle-2">✨</div>
 
-                <div class="result-actions">
-                    <form action="{{ url_for('spin') }}" method="get" class="result-action-form">
-                        {% if request.args.get('category') %}
-                            <input type="hidden" name="category" value="{{ request.args.get('category') }}">
-                        {% endif %}
-                        <button type="submit" class="result-button secondary" id="spin-again-button" {% if tickets < 1 %}disabled{% endif %}>もう一度回す</button>
-                    </form>
-                    <a href="{{ url_for('gacha') }}" class="result-button">カテゴリ選択画面に戻る</a>
-                </div>
-            </section>
-        </main>
+    {% include 'notification_panel.html' %}
+</body>
 
-        <div class="floating-sparkle sparkle-1">✨</div>
-        <div class="floating-sparkle sparkle-2">✨</div>
-    </body>
 </html>

@@ -1,67 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{ idea.title }} - 投稿詳細</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='post_view.css') }}">
-        <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-    </head>
-    <body>
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <div class="logo-icon">💡</div>
-                    <h1 class="logo-text">ひらめきリレー</h1>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ idea.title }} - 投稿詳細</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='post_view.css') }}">
+    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
+</head>
+
+<body>
+    {% include 'header.html' %}
+
+    <main class="post-main">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-messages glass-card">
+            {% for message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <article class="post-card glass-card">
+            <header class="post-header">
+                <h2 class="post-title">{{ idea.title }}</h2>
+                <div class="post-meta">
+                    <span>{{ idea.category }}</span>
+                    <span>{{ idea.created_at }}</span>
                 </div>
-                <div class="header-right">
-                    <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <nav class="mypage-nav">
-                        <a href="{{ url_for('index') }}">ホーム</a>
-                        <a href="{{ url_for('form') }}">投稿</a>
-                        <a href="{{ url_for('gacha') }}">ガチャ</a>
-                        <a href="{{ url_for('mypage') }}" class="active">マイページ</a>
-                        <a href="{{ url_for('ranking') }}">ランキング</a>
-                    </nav>
-                </div>
-            </div>
-        </header>
+            </header>
+            <section class="post-body">
+                <p>{{ idea.detail | replace('\n', '<br>') | safe }}</p>
+            </section>
+            <footer class="post-footer">
+                <a href="{{ url_for('mypage') }}" class="post-back-link">← マイページに戻る</a>
+            </footer>
+        </article>
+    </main>
 
-        <main class="post-main">
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    <div class="flash-messages glass-card">
-                        {% for message in messages %}
-                            <p>{{ message }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
+    <div class="floating-sparkle sparkle-1">✨</div>
+    <div class="floating-sparkle sparkle-2">✨</div>
 
-            <article class="post-card glass-card">
-                <header class="post-header">
-                    <h2 class="post-title">{{ idea.title }}</h2>
-                    <div class="post-meta">
-                        <span>{{ idea.category }}</span>
-                        <span>{{ idea.created_at }}</span>
-                    </div>
-                </header>
-                <section class="post-body">
-                    <p>{{ idea.detail | replace('\n', '<br>') | safe }}</p>
-                </section>
-                <footer class="post-footer">
-                    <a href="{{ url_for('mypage') }}" class="post-back-link">← マイページに戻る</a>
-                </footer>
-            </article>
-        </main>
+    {% include 'notification_panel.html' %}
+</body>
 
-        <div class="floating-sparkle sparkle-1">✨</div>
-        <div class="floating-sparkle sparkle-2">✨</div>
-    </body>
 </html>
-

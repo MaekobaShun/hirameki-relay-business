@@ -14,8 +14,6 @@ from relay.db import (
     get_user_by_email,
     get_user_by_user_id,
     insert_user,
-    get_user_tickets,
-    add_user_tickets,
 )
 import uuid
 from datetime import datetime
@@ -33,6 +31,44 @@ MAX_NICKNAME_LENGTH = 32
 
 MAX_TITLE_LENGTH = 60
 MAX_POST_LENGTH = 280
+
+
+@app.context_processor
+def inject_notifications():
+    if 'user_id' not in session:
+        return dict(revival_notifications=[])
+    
+    user_id = session['user_id']
+    with get_connection() as con:
+        revival_rows = con.execute("""
+            SELECT 
+                rn.notify_id,
+                rn.created_at,
+                rn.picker_id,
+                picker.nickname,
+                picker.icon_path,
+                i.title,
+                i.category
+            FROM revival_notify rn
+            JOIN ideas i ON rn.idea_id = i.idea_id
+            LEFT JOIN mypage picker ON rn.picker_id = picker.user_id
+            WHERE rn.author_id = ?
+            ORDER BY rn.created_at DESC
+        """, (user_id,)).fetchall()
+
+    revival_notifications = []
+    for row in revival_rows:
+        revival_notifications.append({
+            'notify_id': row[0],
+            'created_at': row[1],
+            'picker_id': row[2],
+            'picker_nickname': row[3] if row[3] else '不明なユーザー',
+            'picker_icon_path': row[4],
+            'idea_title': row[5],
+            'category': row[6]
+        })
+    
+    return dict(revival_notifications=revival_notifications)
 
 
 def calculate_text_length(text):
@@ -166,6 +202,203 @@ def form():
         'form.html'
     )
 
+
+@app.route('/inheritance/<idea_id>')
+@login_required
+def inheritance_form(idea_id):
+    user_id = session['user_id']
+    
+    with get_connection() as con:
+        idea_row = con.execute(
+            "SELECT idea_id, title, detail, category, user_id, created_at FROM ideas WHERE idea_id = ?",
+            (idea_id,)
+        ).fetchone()
+        
+        if not idea_row:
+            flash('アイデアが見つかりません。')
+            return redirect(url_for('mypage'))
+        
+        parent_user_row = con.execute(
+            "SELECT user_id, nickname FROM mypage WHERE user_id = ?",
+            (idea_row[4],)
+        ).fetchone()
+    
+    idea = {
+        'idea_id': idea_row[0],
+        'title': idea_row[1],
+        'detail': idea_row[2],
+        'category': idea_row[3],
+        'user_id': idea_row[4],
+        'created_at': idea_row[5],
+        'author_nickname': parent_user_row[1] if parent_user_row else '不明なユーザー'
+    }
+    
+    return render_template(
+        'inheritance_form.html',
+        idea=idea
+    )
+
+
+@app.route('/inheritance/<idea_id>/save', methods=['POST'])
+@login_required
+def save_inheritance(idea_id):
+    user_id = session['user_id']
+    add_point = request.form.get('add_point', '').strip()
+    add_detail = request.form.get('add_detail', '').strip()
+    parent_idea_id = request.form.get('parent_idea_id')
+    parent_user_id = request.form.get('parent_user_id')
+
+    if not add_point:
+        flash('追加したポイントを入力してください。')
+        return redirect(url_for('inheritance_form', idea_id=idea_id))
+
+    if calculate_text_length(add_point) > 64:
+        flash('追加したポイントは全角32文字（半角64文字）以内で入力してください。')
+        return redirect(url_for('inheritance_form', idea_id=idea_id))
+
+    with get_connection() as con:
+        # 既存の継承レコードがあるか確認
+        existing = con.execute(
+            "SELECT inheritance_id FROM idea_inheritance WHERE parent_idea_id = ? AND child_user_id = ? AND child_idea_id IS NULL",
+            (parent_idea_id, user_id)
+        ).fetchone()
+
+        inheritance_id = str(uuid.uuid4())
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        if existing:
+            # 既存のレコードを更新
+            con.execute(
+                """
+                UPDATE idea_inheritance 
+                SET add_point = ?, add_detail = ?, created_at = ?
+                WHERE inheritance_id = ?
+                """,
+                (add_point, add_detail if add_detail else None, created_at, existing[0])
+            )
+        else:
+            # 新規レコードを作成
+            con.execute(
+                """
+                INSERT INTO idea_inheritance 
+                (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (inheritance_id, parent_idea_id, parent_user_id, None, user_id, add_point, add_detail if add_detail else None, created_at)
+            )
+
+    flash('継承情報を保存しました。')
+    return redirect(url_for('mypage'))
+
+
+@app.route('/inheritance/<idea_id>/post', methods=['POST'])
+@login_required
+def post_inheritance(idea_id):
+    user_id = session['user_id']
+    add_point = request.form.get('add_point', '').strip()
+    add_detail = request.form.get('add_detail', '').strip()
+    parent_idea_id = request.form.get('parent_idea_id')
+    parent_user_id = request.form.get('parent_user_id')
+
+    if not add_point:
+        flash('追加したポイントを入力してください。')
+        return redirect(url_for('inheritance_form', idea_id=idea_id))
+
+    if calculate_text_length(add_point) > 64:
+        flash('追加したポイントは全角32文字（半角64文字）以内で入力してください。')
+        return redirect(url_for('inheritance_form', idea_id=idea_id))
+
+    with get_connection() as con:
+        # 親アイデアの情報を取得
+        parent_idea = con.execute(
+            "SELECT title, detail, category FROM ideas WHERE idea_id = ?",
+            (parent_idea_id,)
+        ).fetchone()
+
+        if not parent_idea:
+            flash('継承元のアイデアが見つかりません。')
+            return redirect(url_for('mypage'))
+
+        # 新しいアイデアを作成（継承元の情報をベースに）
+        child_idea_id = str(uuid.uuid4())
+        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # タイトルと詳細を継承元から取得（必要に応じて編集可能にする場合は変更）
+        child_title = parent_idea[0]  # 親のタイトルを使用
+        child_detail = parent_idea[1]  # 親の詳細を使用
+        child_category = parent_idea[2]  # 親のカテゴリを使用
+
+        # アイデアを登録
+        con.execute(
+            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (child_idea_id, child_title, add_detail, child_category, user_id, created_at, True)
+        )
+
+        # 継承情報を登録
+        inheritance_id = str(uuid.uuid4())
+        con.execute(
+            """
+            INSERT INTO idea_inheritance 
+            (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, user_id, add_point, add_detail if add_detail else None, created_at)
+        )
+
+    flash('アイデアを継承して新規投稿しました。')
+    return redirect(url_for('index'))
+
+@app.route('/inheritance/view/<inheritance_id>')
+@login_required
+def inheritance_view(inheritance_id):
+    user_id = session['user_id']
+    
+    with get_connection() as con:
+        row = con.execute("""
+            SELECT 
+                ii.inheritance_id,
+                ii.parent_idea_id,
+                ii.child_idea_id,
+                ii.add_point,
+                ii.add_detail,
+                ii.created_at,
+                parent_i.title as parent_title,
+                parent_i.detail as parent_detail,
+                parent_i.category as parent_category,
+                parent_u.nickname as parent_nickname,
+                child_i.title as child_title,
+                child_i.detail as child_detail,
+                child_i.category as child_category
+            FROM idea_inheritance ii
+            LEFT JOIN ideas parent_i ON ii.parent_idea_id = parent_i.idea_id
+            LEFT JOIN mypage parent_u ON ii.parent_user_id = parent_u.user_id
+            LEFT JOIN ideas child_i ON ii.child_idea_id = child_i.idea_id
+            WHERE ii.inheritance_id = ?
+        """, (inheritance_id,)).fetchone()
+        
+        if not row:
+            flash('継承情報が見つかりません。')
+            return redirect(url_for('mypage'))
+            
+        inheritance = {
+            'inheritance_id': row[0],
+            'parent_idea_id': row[1],
+            'child_idea_id': row[2],
+            'add_point': row[3],
+            'add_detail': row[4],
+            'created_at': row[5],
+            'parent_title': row[6],
+            'parent_detail': row[7],
+            'parent_category': row[8],
+            'parent_nickname': row[9] if row[9] else '不明なユーザー',
+            'child_title': row[10],
+            'child_detail': row[11],
+            'child_category': row[12]
+        }
+        
+    return render_template('inheritance_view.html', inheritance=inheritance)
+
+
 @app.route('/post', methods=['POST'])
 def post():
     if 'user_id' not in session:
@@ -195,11 +428,6 @@ def post():
             "INSERT INTO ideas VALUES (?, ?, ?, ?, ?, ?)",
             [idea_id, title, detail, category, user_id, created_at]
         )
-        con.commit()
-    
-    # アイデア投稿時にチケット+1枚付与
-    new_tickets = add_user_tickets(user_id, 1)
-    session['tickets'] = new_tickets
 
     return redirect(url_for('index'))
 
@@ -244,7 +472,8 @@ def post_view(idea_id):
                 i.created_at,
                 i.user_id,
                 u.nickname,
-                u.icon_path
+                u.icon_path,
+                i.inheritance_flag
             FROM ideas i
             LEFT JOIN mypage u ON i.user_id = u.user_id
             WHERE i.idea_id = ?
@@ -255,6 +484,16 @@ def post_view(idea_id):
     if not row:
         flash('投稿が見つかりませんでした。')
         return redirect(url_for('mypage'))
+
+    # 継承されたアイデアの場合は継承詳細画面へリダイレクト
+    if row[8]: # inheritance_flag
+        with get_connection() as con:
+            inheritance_row = con.execute(
+                "SELECT inheritance_id FROM idea_inheritance WHERE child_idea_id = ?",
+                (idea_id,)
+            ).fetchone()
+            if inheritance_row:
+                return redirect(url_for('inheritance_view', inheritance_id=inheritance_row[0]))
 
     idea = {
         'idea_id': row[0],
@@ -353,7 +592,6 @@ def signup():
             session['nickname'] = nickname
             session['email'] = email
             session['icon_path'] = icon_path
-            session['tickets'] = 1  # 初回登録時にチケット1枚付与
             return redirect(url_for('index'))
 
     return render_template(
@@ -410,8 +648,7 @@ def login():
             session['user_id'] = user_row[0]
             session['nickname'] = user_row[1]
             session['email'] = user_row[3]
-            session['icon_path'] = user_row[4] if len(user_row) > 4 else None
-            session['tickets'] = user_row[6] if len(user_row) > 6 else 0
+            session['icon_path'] = user_row[4]
 
             if next_url:
                 return redirect(next_url)
@@ -436,10 +673,7 @@ def logout():
 @login_required
 def gacha():
     selected_category = request.args.get("category", "")
-    user_id = session.get('user_id')
-    tickets = get_user_tickets(user_id) if user_id else 0
-    session['tickets'] = tickets  # セッションも更新
-    return render_template("gacha.html", selected_category=selected_category, tickets=tickets)
+    return render_template("gacha.html", selected_category=selected_category)
 
 # ランダムに1つのアイテムを表示するルート
 @app.route('/result')
@@ -447,9 +681,6 @@ def gacha():
 def result():
     idea = None
     idea_id = session.pop('last_gacha_idea_id', None)
-    user_id = session.get('user_id')
-    tickets = get_user_tickets(user_id) if user_id else 0
-    session['tickets'] = tickets  # セッションも更新
 
     if idea_id:
         with get_connection() as con:
@@ -458,7 +689,7 @@ def result():
                 (idea_id,)
             ).fetchone()
 
-    return render_template("result.html", item=idea, tickets=tickets)
+    return render_template("result.html", item=idea)
 
 # ガチャを回して結果ページにリダイレクトするルート
 @app.route('/spin')
@@ -466,12 +697,6 @@ def result():
 def spin():
     current_user_id = session.get('user_id')
     category = request.args.get('category')  # 💡カテゴリを取得
-
-    # チケットチェック
-    tickets = get_user_tickets(current_user_id)
-    if tickets < 1:
-        flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
-        return redirect(url_for('gacha', category=category))
 
     item = fetch_random_item(
         exclude_user_id=current_user_id,
@@ -486,10 +711,6 @@ def spin():
     idea_id = item[0]
     author_id = item[4]
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    # チケットを1枚消費
-    new_tickets = add_user_tickets(current_user_id, -1)
-    session['tickets'] = new_tickets
 
     with get_connection() as con:
         con.execute(
@@ -625,6 +846,29 @@ def mypage():
             ORDER BY rn.created_at DESC
         """, (user_id,)).fetchall()
 
+        inheritance_rows = con.execute("""
+            SELECT 
+                ii.inheritance_id,
+                ii.parent_idea_id,
+                ii.child_idea_id,
+                ii.add_point,
+                ii.add_detail,
+                ii.created_at,
+                parent_i.title as parent_title,
+                parent_i.detail as parent_detail,
+                parent_i.category as parent_category,
+                parent_u.nickname as parent_nickname,
+                child_i.title as child_title,
+                child_i.detail as child_detail,
+                child_i.category as child_category
+            FROM idea_inheritance ii
+            LEFT JOIN ideas parent_i ON ii.parent_idea_id = parent_i.idea_id
+            LEFT JOIN mypage parent_u ON ii.parent_user_id = parent_u.user_id
+            LEFT JOIN ideas child_i ON ii.child_idea_id = child_i.idea_id
+            WHERE ii.child_user_id = ?
+            ORDER BY ii.created_at DESC
+        """, (user_id,)).fetchall()
+
     ideas = []
     for row in idea_rows:
         ideas.append({
@@ -658,54 +902,29 @@ def mypage():
             'category': row[6]
         })
 
+    inheritance_items = []
+    for row in inheritance_rows:
+        inheritance_items.append({
+            'inheritance_id': row[0],
+            'parent_idea_id': row[1],
+            'child_idea_id': row[2],
+            'add_point': row[3],
+            'add_detail': row[4],
+            'created_at': row[5],
+            'parent_title': row[6],
+            'parent_detail': row[7],
+            'parent_category': row[8],
+            'parent_nickname': row[9] if row[9] else '不明なユーザー',
+            'child_title': row[10],
+            'child_detail': row[11],
+            'child_category': row[12]
+        })
+
     return render_template(
         'mypage.html',
         user=user,
         ideas=ideas,
         gacha_results=gacha_results,
-        revival_notifications=revival_notifications
-    )
-
-
-@app.route('/ranking')
-@login_required
-def ranking():
-    """投稿数ランキングページ"""
-    with get_connection() as con:
-        # 投稿数でユーザーをランキング（投稿数が多い順）
-        ranking_rows = con.execute("""
-            SELECT 
-                u.user_id,
-                u.nickname,
-                u.icon_path,
-                COUNT(i.idea_id) as post_count
-            FROM mypage u
-            LEFT JOIN ideas i ON u.user_id = i.user_id
-            GROUP BY u.user_id, u.nickname, u.icon_path
-            HAVING COUNT(i.idea_id) > 0
-            ORDER BY post_count DESC, u.created_at ASC
-        """).fetchall()
-
-    rankings = []
-    for rank, row in enumerate(ranking_rows, start=1):
-        rankings.append({
-            'rank': rank,
-            'user_id': row[0],
-            'nickname': row[1],
-            'icon_path': row[2],
-            'post_count': row[3]
-        })
-
-    current_user_id = session.get('user_id')
-    current_user_rank = None
-    for ranking_item in rankings:
-        if ranking_item['user_id'] == current_user_id:
-            current_user_rank = ranking_item['rank']
-            break
-
-    return render_template(
-        'ranking.html',
-        rankings=rankings,
-        current_user_id=current_user_id,
-        current_user_rank=current_user_rank
+        revival_notifications=revival_notifications,
+        inheritance_items=inheritance_items
     )
