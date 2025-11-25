@@ -18,27 +18,27 @@
         </div>
         <nav class="sidebar-nav">
             <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
-                <span class="nav-icon">🏠</span>
+                <img src="{{ url_for('static', filename='images/home-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ホーム">
                 <span>ホーム</span>
             </a>
             <a href="{{ url_for('form') }}" class="nav-item {% if request.endpoint == 'form' %}active{% endif %}">
-                <span class="nav-icon">✍️</span>
+                <img src="{{ url_for('static', filename='images/edit-1479-svgrepo-com.svg') }}" class="nav-icon-svg" alt="投稿">
                 <span>投稿する</span>
             </a>
             <a href="{{ url_for('gacha') }}" class="nav-item {% if request.endpoint == 'gacha' %}active{% endif %}">
-                <span class="nav-icon">🎲</span>
-                <span>ピックアップガチャ</span>
+                <img src="{{ url_for('static', filename='images/die-5-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ガチャ">
+                <span>ガチャ</span>
             </a>
             <a href="{{ url_for('ranking') }}" class="nav-item {% if request.endpoint == 'ranking' %}active{% endif %}">
-                <span class="nav-icon">📊</span>
+                <img src="{{ url_for('static', filename='images/ranking-1-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ランキング">
                 <span>ランキング</span>
             </a>
             <a href="{{ url_for('events') }}" class="nav-item {% if request.endpoint == 'events' %}active{% endif %}">
-                <span class="nav-icon">🎉</span>
+                <img src="{{ url_for('static', filename='images/event-svgrepo-com.svg') }}" class="nav-icon-svg" alt="イベント">
                 <span>イベント</span>
             </a>
              <a href="{{ url_for('mypage') }}" class="nav-item {% if request.endpoint == 'mypage' %}active{% endif %}">
-                <span class="nav-icon">👤</span>
+                <img src="{{ url_for('static', filename='images/user-svgrepo-com.svg') }}" class="nav-icon-svg" alt="マイページ">
                 <span>マイページ</span>
             </a>
             <!--
@@ -61,7 +61,7 @@
             <div class="header-actions">
                 <!-- 通知機能 -->
                 <button class="notification-btn" id="notification-bell">
-                    🔔
+                    <img src="{{ url_for('static', filename='images/bell-svgrepo-com.svg') }}" class="notification-icon-svg" alt="通知">
                     {% if revival_notifications and revival_notifications|length > 0 %}
                     <span class="notification-badge">{{ revival_notifications|length }}</span>
                     {% endif %}

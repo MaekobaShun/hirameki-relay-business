@@ -68,6 +68,18 @@
     font-weight: 500;
 }
 
+.event-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.event-meta-icon {
+    width: 18px;
+    height: 18px;
+    filter: brightness(0) invert(1);
+}
+
 .event-action {
     position: absolute;
     bottom: 3rem;
@@ -118,6 +130,26 @@
     box-shadow: var(--hover-shadow);
 }
 
+/* Icon Animations */
+@keyframes icon-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
+}
+
+@keyframes icon-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.post-card:hover .card-icon-svg {
+    animation: icon-wiggle 0.5s ease-in-out;
+}
+
+.gacha-card:hover .card-icon-svg {
+    animation: icon-spin 0.8s ease-in-out;
+}
+
 .post-card:hover {
     border-color: #f59e0b;
 }
@@ -137,6 +169,20 @@
     align-items: center;
     justify-content: center;
     margin-right: 1.25rem;
+}
+
+.card-icon-svg {
+    width: 32px;
+    height: 32px;
+}
+
+.post-card .card-icon-svg {
+    /* Orange active color from sidebar */
+    filter: invert(48%) sepia(79%) saturate(3730%) hue-rotate(345deg) brightness(93%) contrast(93%);
+}
+
+.gacha-card .card-icon-svg {
+    filter: brightness(0) invert(1);
 }
 
 .post-card .card-icon-wrapper {
@@ -186,6 +232,11 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.section-title-icon {
+    width: 24px;
+    height: 24px;
 }
 
 /* Ranking Tabs */
@@ -253,12 +304,39 @@
     font-size: 1.25rem;
     font-weight: 800;
     width: 40px;
+    height: 40px;
+    border-radius: 0.5rem;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #9ca3af;
+    background: white;
+    border: 1px solid rgba(226, 232, 240, 0.9);
     margin-right: 1rem;
 }
 
-.rank-number.top-rank {
+.rank-number.rank-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #1a1a1a;
+    border-color: rgba(255, 215, 0, 0.5);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    font-size: 1.5rem;
+}
+
+.rank-number.rank-silver {
+    background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 100%);
+    color: #1a1a1a;
+    border-color: rgba(192, 192, 192, 0.5);
+    box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+    font-size: 1.5rem;
+}
+
+.rank-number.rank-bronze {
+    background: linear-gradient(135deg, #D2691E 0%, #CD853F 100%);
+    color: #ffffff;
+    border-color: rgba(210, 105, 30, 0.5);
+    box-shadow: 0 4px 12px rgba(210, 105, 30, 0.3);
     font-size: 1.5rem;
 }
 

@@ -12,12 +12,15 @@
     {% set event = active_events[0] %}
     <div class="event-banner">
         <div class="event-content">
-            <div class="event-status-badge">🏆 現在開催中</div>
+            <div class="event-status-badge">現在開催中</div>
             <h2>{{ event.name }}</h2>
             <!-- 詳細情報があればここに表示 -->
             <p class="event-subtitle">期間: {{ event.start_date.strftime('%m/%d') }} 〜 {{ event.end_date.strftime('%m/%d') }}</p>
             <div class="event-meta">
-                <span>🕒 残り日数: {{ event.remaining_days }}日</span>
+                <span>
+                    <img src="{{ url_for('static', filename='images/clock-two-svgrepo-com.svg') }}" class="event-meta-icon" alt="残り期間">
+                    残り日数: {{ event.remaining_days }}日
+                </span>
                 <!-- <span>🔥 投稿数 142件</span> -->
             </div>
         </div>
@@ -43,7 +46,7 @@
     <!-- Post Idea -->
     <a href="{{ url_for('form') }}" class="action-card post-card">
         <div class="card-icon-wrapper">
-            ✏️
+            <img src="{{ url_for('static', filename='images/edit-1479-svgrepo-com.svg') }}" class="card-icon-svg" alt="投稿">
         </div>
         <div class="card-text">
             <h3>新しいアイデアを投稿</h3>
@@ -54,7 +57,7 @@
     <!-- Gacha -->
     <a href="{{ url_for('gacha') }}" class="action-card gacha-card">
         <div class="card-icon-wrapper">
-            🎲
+            <img src="{{ url_for('static', filename='images/die-5-svgrepo-com.svg') }}" class="card-icon-svg" alt="ガチャ">
         </div>
         <div class="card-text">
             <h3>アイデアガチャを回す</h3>
@@ -66,7 +69,10 @@
 <!-- Rankings (Timeline Replacement) -->
 <section class="ranking-section">
     <div class="section-header">
-        <h3 class="section-title">📈 ランキング</h3>
+        <h3 class="section-title">
+            <img src="{{ url_for('static', filename='images/ranking-1-svgrepo-com.svg') }}" class="section-title-icon" alt="ランキング">
+            ランキング
+        </h3>
     </div>
 
     <!-- Ranking Tabs -->
@@ -82,10 +88,10 @@
     <div class="ranking-list ranking-period-content" data-period="{{ period_key }}" {% if current_period != period_key %}style="display: none;"{% else %}style="display: flex;"{% endif %}>
         {% set period_rankings = rankings_by_period[period_key] %}
         {% if period_rankings %}
-            {% for user in period_rankings %}
+            {% for user in period_rankings[:3] %}
             <div class="ranking-item">
-                <div class="rank-number {% if user.rank <= 3 %}top-rank{% endif %}">
-                    {% if user.rank == 1 %}🥇{% elif user.rank == 2 %}🥈{% elif user.rank == 3 %}🥉{% else %}{{ user.rank }}{% endif %}
+                <div class="rank-number {% if user.rank == 1 %}rank-gold{% elif user.rank == 2 %}rank-silver{% elif user.rank == 3 %}rank-bronze{% endif %}">
+                    {{ user.rank }}
                 </div>
                 <div class="rank-user-info">
                     {% if user.icon_path %}

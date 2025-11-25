@@ -196,7 +196,7 @@
 .rank-number {
     width: 52px;
     height: 52px;
-    border-radius: 50%;
+    border-radius: 0.75rem;
     border: 1px solid rgba(226, 232, 240, 0.9);
     display: flex;
     align-items: center;
@@ -207,8 +207,25 @@
     font-size: 1.1rem;
 }
 
-.rank-icon {
-    font-size: 1.5rem;
+.rank-number.rank-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #1a1a1a;
+    border-color: rgba(255, 215, 0, 0.5);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.rank-number.rank-silver {
+    background: linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 100%);
+    color: #1a1a1a;
+    border-color: rgba(192, 192, 192, 0.5);
+    box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+}
+
+.rank-number.rank-bronze {
+    background: linear-gradient(135deg, #D2691E 0%, #CD853F 100%);
+    color: #ffffff;
+    border-color: rgba(210, 105, 30, 0.5);
+    box-shadow: 0 4px 12px rgba(210, 105, 30, 0.3);
 }
 
 .user-info {
@@ -301,6 +318,7 @@
         width: 45px;
         height: 45px;
         font-size: 1rem;
+        border-radius: 0.625rem;
     }
 
     .user-info {

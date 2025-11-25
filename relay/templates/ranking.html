@@ -80,16 +80,8 @@
                 <div class="ranking-list">
                     {% for ranking in period_rankings %}
                     <div class="ranking-item {% if ranking.user_id == current_user_id %}current-user{% endif %}">
-                        <div class="rank-number">
-                            {% if ranking.rank == 1 %}
-                                <span class="rank-icon">🥇</span>
-                            {% elif ranking.rank == 2 %}
-                                <span class="rank-icon">🥈</span>
-                            {% elif ranking.rank == 3 %}
-                                <span class="rank-icon">🥉</span>
-                            {% else %}
-                                <span class="rank-text">{{ ranking.rank }}</span>
-                            {% endif %}
+                        <div class="rank-number {% if ranking.rank == 1 %}rank-gold{% elif ranking.rank == 2 %}rank-silver{% elif ranking.rank == 3 %}rank-bronze{% endif %}">
+                            <span class="rank-text">{{ ranking.rank }}</span>
                         </div>
                         <div class="user-info">
                             <div class="user-avatar">

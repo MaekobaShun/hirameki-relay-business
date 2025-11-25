@@ -105,6 +105,25 @@ body {
     text-align: center;
 }
 
+.nav-icon-svg {
+    width: 20px;
+    height: 20px;
+    margin-right: 0.75rem;
+    /* デフォルト色: #6b7280 (gray-500) */
+    filter: invert(48%) sepia(6%) saturate(575%) hue-rotate(182deg) brightness(92%) contrast(87%);
+    transition: filter 0.2s;
+}
+
+.nav-item:hover .nav-icon-svg {
+    /* ホバー色: #111827 (gray-900) - 近似 */
+    filter: invert(7%) sepia(10%) saturate(1139%) hue-rotate(182deg) brightness(95%) contrast(92%);
+}
+
+.nav-item.active .nav-icon-svg {
+    /* アクティブ色: #ea580c (orange-600) */
+    filter: invert(48%) sepia(79%) saturate(3730%) hue-rotate(345deg) brightness(93%) contrast(93%);
+}
+
 .nav-item.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -192,11 +211,27 @@ body {
     padding: 0.5rem;
     border-radius: 50%;
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-icon-svg {
+    width: 24px;
+    height: 24px;
+    /* デフォルト色: #6b7280 (gray-500) */
+    filter: invert(48%) sepia(6%) saturate(575%) hue-rotate(182deg) brightness(92%) contrast(87%);
+    transition: filter 0.2s;
 }
 
 .notification-btn:hover {
     background: #f3f4f6;
     color: #1f2937;
+}
+
+.notification-btn:hover .notification-icon-svg {
+    /* ホバー色: #111827 (gray-900) */
+    filter: invert(7%) sepia(10%) saturate(1139%) hue-rotate(182deg) brightness(95%) contrast(92%);
 }
 
 .user-profile {
