@@ -1,242 +1,89 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ event.name }} - イベント終了 - ひらめきリレー</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <style>
-        .event-ended-container {
-            max-width: 1000px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-        .event-header {
-            background: linear-gradient(135deg, #999 0%, #666 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        .event-header h1 {
-            margin: 0 0 0.5rem 0;
-        }
-        .ended-badge {
-            display: inline-block;
-            background: #f8d7da;
-            color: #721c24;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: bold;
-            margin-top: 1rem;
-        }
-        .event-section {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .event-section h2 {
-            margin-top: 0;
-            color: #333;
-            border-bottom: 2px solid #999;
-            padding-bottom: 0.5rem;
-        }
-        .frozen-note {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
-            color: #856404;
-        }
-        .ranking-list {
-            list-style: none;
-            padding: 0;
-        }
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            background: #f9f9f9;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-        .rank-number {
-            font-size: 1.5rem;
-            font-weight: bold;
-            width: 50px;
-            text-align: center;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 1rem;
-            overflow: hidden;
-            background: #ddd;
-        }
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 2rem;
-            color: #667eea;
-            text-decoration: none;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        .stat-card {
-            background: #f9f9f9;
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #999;
-        }
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid white;
-            color: white;
-        }
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <div class="logo-icon">💡</div>
-                <h1 class="logo-text">ひらめきリレー</h1>
+{% extends "base.html" %}
+
+{% block title %}{{ event.name }} - イベント終了 - ひらめきリレー{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='event_detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="event-ended-container">
+    <a href="{{ url_for('events') }}" class="back-link">← イベント一覧に戻る</a>
+
+    <div class="event-header ended">
+        <h1>{{ event.name }}</h1>
+        <div class="ended-badge">イベント終了</div>
+        <div style="margin-top: 1rem;">
+            <p>開始: {{ event.start_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
+            <p>終了: {{ event.end_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
+            <p>公開設定: {% if event.is_public %}公開{% else %}非公開{% endif %}</p>
+        </div>
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.2); border-radius: 8px;">
+            <p style="margin: 0;">このイベントは <strong>{{ event.creator_nickname }}</strong> さんが作成しました</p>
+            <small style="opacity: 0.8;">作成日時: {{ event.created_at.strftime('%Y年%m月%d日 %H:%M') if event.created_at else '' }}</small>
+        </div>
+        {% if event.is_creator %}
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;">
+            <a href="{{ url_for('event_edit', event_id=event.event_id) }}" class="btn btn-secondary">編集</a>
+            <form method="POST" action="{{ url_for('event_delete', event_id=event.event_id) }}" style="display: inline;" onsubmit="return confirm('本当にこのイベントを削除しますか？この操作は取り消せません。');">
+                <button type="submit" class="btn btn-danger">削除</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="frozen-note">
+        <strong>⚠️ このランキングは最終結果です（凍結されています）</strong>
+    </div>
+
+    <!-- 統計情報 -->
+    <div class="event-section">
+        <h2>📊 イベント最終統計</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ participant_count }}</div>
+                <div class="stat-label">参加者</div>
             </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <div class="welcome-text">ようこそ</div>
-                    <div class="user-name">{{ user_name }}さん</div>
-                </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ idea_count }}</div>
+                <div class="stat-label">投稿数</div>
             </div>
         </div>
-    </header>
+    </div>
 
-    <main class="main-content">
-        <div class="event-ended-container">
-            <a href="{{ url_for('events') }}" class="back-link">← イベント一覧に戻る</a>
-
-            <div class="event-header">
-                <h1>{{ event.name }}</h1>
-                <div class="ended-badge">イベント終了</div>
-                <div style="margin-top: 1rem;">
-                    <p>開始: {{ event.start_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                    <p>終了: {{ event.end_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                    <p>公開設定: {% if event.is_public %}公開{% else %}非公開{% endif %}</p>
-                </div>
-                <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.2); border-radius: 8px;">
-                    <p style="margin: 0;">このイベントは <strong>{{ event.creator_nickname }}</strong> さんが作成しました</p>
-                    <small style="opacity: 0.8;">作成日時: {{ event.created_at.strftime('%Y年%m月%d日 %H:%M') if event.created_at else '' }}</small>
-                </div>
-                {% if event.is_creator %}
-                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                    <a href="{{ url_for('event_edit', event_id=event.event_id) }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.2); border: 1px solid white; color: white;">編集</a>
-                    <form method="POST" action="{{ url_for('event_delete', event_id=event.event_id) }}" style="display: inline;" onsubmit="return confirm('本当にこのイベントを削除しますか？この操作は取り消せません。');">
-                        <button type="submit" class="btn btn-danger" style="background: #dc3545; border: none; color: white;">削除</button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="frozen-note">
-                <strong>⚠️ このランキングは最終結果です（凍結されています）</strong>
-            </div>
-
-            <!-- 統計情報 -->
-            <div class="event-section">
-                <h2>📊 イベント最終統計</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number">{{ participant_count }}</div>
-                        <div class="stat-label">参加者</div>
+    <!-- 最終ランキング -->
+    <div class="event-section">
+        <h2>🏆 最終ランキング</h2>
+        {% if rankings %}
+            <ul class="ranking-list">
+                {% for ranking in rankings %}
+                {% set rank = loop.index %}
+                <li class="ranking-item">
+                    <div class="rank-number">
+                        {% if rank == 1 %}🥇
+                        {% elif rank == 2 %}🥈
+                        {% elif rank == 3 %}🥉
+                        {% else %}{{ rank }}{% endif %}
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">{{ idea_count }}</div>
-                        <div class="stat-label">投稿数</div>
+                    <div class="user-avatar">
+                        {% if ranking.icon_path %}
+                            {% if ranking.icon_path.startswith('uploads/') %}
+                                <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}">
+                            {% elif ranking.icon_path.startswith('http') %}
+                                <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}">
+                            {% endif %}
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-
-            <!-- 最終ランキング -->
-            <div class="event-section">
-                <h2>🏆 最終ランキング</h2>
-                {% if rankings %}
-                    <ul class="ranking-list">
-                        {% for ranking in rankings %}
-                        {% set rank = loop.index %}
-                        <li class="ranking-item">
-                            <div class="rank-number">
-                                {% if rank == 1 %}🥇
-                                {% elif rank == 2 %}🥈
-                                {% elif rank == 3 %}🥉
-                                {% else %}{{ rank }}{% endif %}
-                            </div>
-                            <div class="user-avatar">
-                                {% if ranking.icon_path %}
-                                    {% if ranking.icon_path.startswith('uploads/') %}
-                                        <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}">
-                                    {% elif ranking.icon_path.startswith('http') %}
-                                        <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}">
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                            <div>
-                                <strong>{{ ranking.nickname }}</strong>
-                                <div style="color: #666; font-size: 0.9rem;">{{ ranking.post_count }}投稿</div>
-                            </div>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p style="color: #999; text-align: center; padding: 2rem;">ランキングデータがありません</p>
-                {% endif %}
-            </div>
-        </div>
-    </main>
-</body>
-</html>
-
+                    <div>
+                        <strong>{{ ranking.nickname }}</strong>
+                        <div style="color: #666; font-size: 0.9rem;">{{ ranking.post_count }}投稿</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p style="color: #999; text-align: center; padding: 2rem;">ランキングデータがありません</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

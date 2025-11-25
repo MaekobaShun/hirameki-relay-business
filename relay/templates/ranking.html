@@ -1,65 +1,84 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ランキング - ひらめきリレー</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='ranking.css') }}">
-    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-</head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <div class="logo-icon">💡</div>
-                <h1 class="logo-text">ひらめきリレー</h1>
-            </div>
-            <div class="header-right">
-                <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
-                <nav class="mypage-nav">
-                    <a href="{{ url_for('index') }}">ホーム</a>
-                    <a href="{{ url_for('form') }}">投稿</a>
-                    <a href="{{ url_for('gacha') }}">ガチャ</a>
-                    <a href="{{ url_for('mypage') }}">マイページ</a>
-                    <a href="{{ url_for('ranking') }}" class="active">ランキング</a>
-                </nav>
+{% extends "base.html" %}
+
+{% block title %}ランキング - ひらめきリレー{% endblock %}
+
+{% block header_intro %}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='ranking.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set total_ranked = rankings|length if rankings else 0 %}
+{% set top_ranking = rankings[0] if rankings else None %}
+<div class="ranking-main">
+    <section class="ranking-hero">
+        <div class="hero-copy">
+            <h2>投稿数ランキング</h2>
+            <div class="hero-metrics">
+                <div class="metric-card">
+                    <span class="metric-label">エントリー数</span>
+                    <span class="metric-value">{{ total_ranked }}</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">トップ投稿</span>
+                    <span class="metric-value">
+                        {% if top_ranking %}
+                            {{ top_ranking.post_count }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </span>
+                    <span class="metric-footnote">
+                        {% if top_ranking %}
+                            {{ top_ranking.nickname }}
+                        {% else %}
+                            集計中
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">あなたの順位</span>
+                    <span class="metric-value">
+                        {% if current_user_rank %}
+                            {{ current_user_rank }}位
+                        {% else %}
+                            —
+                        {% endif %}
+                    </span>
+                </div>
             </div>
         </div>
-    </header>
+    </section>
 
-    <main class="ranking-main">
-        <div class="ranking-container">
-            <div class="ranking-header">
-                <h2 class="ranking-title">📊 投稿数ランキング</h2>
-                <p class="ranking-subtitle">最も多くのアイデアを投稿しているユーザー</p>
-                {% if current_user_rank %}
-                <div class="current-user-rank">
-                    <span class="rank-label">あなたの順位:</span>
-                    <span class="rank-value">{{ current_user_rank }}位</span>
-                </div>
-                {% endif %}
-            </div>
+    <section class="ranking-container">
+        <div class="ranking-tabs">
+            <button class="tab-button active" data-tab="posts">
+                <span class="tab-label">投稿数</span>
+            </button>
+            <button class="tab-button disabled" data-tab="inheritance" disabled>
+                <span class="tab-label">継承数</span>
+                <span class="tab-badge">準備中</span>
+            </button>
+        </div>
 
-            <div class="ranking-tabs">
-                <button class="tab-button active" data-tab="posts">
-                    <span class="tab-label">投稿数</span>
-                </button>
-                <button class="tab-button disabled" data-tab="inheritance" disabled>
-                    <span class="tab-label">継承数</span>
-                    <span class="tab-badge">準備中</span>
-                </button>
-            </div>
+        <!-- Period Tabs -->
+        <div class="period-tabs">
+            <button class="period-tab {% if current_period == 'all' %}active{% endif %}" data-period="all">総合</button>
+            <button class="period-tab {% if current_period == 'yearly' %}active{% endif %}" data-period="yearly">年間</button>
+            <button class="period-tab {% if current_period == 'monthly' %}active{% endif %}" data-period="monthly">月間</button>
+            <button class="period-tab {% if current_period == 'weekly' %}active{% endif %}" data-period="weekly">週間</button>
+        </div>
 
-            <div class="ranking-content">
-                {% if rankings %}
+            <!-- Ranking Content for each period -->
+        <div class="ranking-content">
+            {% for period_key, period_name in [('all', '総合'), ('yearly', '年間'), ('monthly', '月間'), ('weekly', '週間')] %}
+            <div class="period-ranking-content" data-period="{{ period_key }}" {% if current_period != period_key %}style="display: none;"{% else %}style="display: block;"{% endif %}>
+                {% set period_rankings = rankings_by_period[period_key] %}
+                {% if period_rankings %}
                 <div class="ranking-list">
-                    {% for ranking in rankings %}
+                    {% for ranking in period_rankings %}
                     <div class="ranking-item {% if ranking.user_id == current_user_id %}current-user{% endif %}">
                         <div class="rank-number">
                             {% if ranking.rank == 1 %}
@@ -104,7 +123,48 @@
                 </div>
                 {% endif %}
             </div>
+            {% endfor %}
         </div>
-    </main>
-</body>
-</html>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const periodTabs = document.querySelectorAll('.period-tab');
+    const periodContents = document.querySelectorAll('.period-ranking-content');
+    
+    periodTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const period = this.getAttribute('data-period');
+            
+            // タブのアクティブ状態を更新
+            periodTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // コンテンツの表示/非表示を切り替え
+            periodContents.forEach(content => {
+                if (content.getAttribute('data-period') === period) {
+                    content.style.display = 'block';
+                } else {
+                    content.style.display = 'none';
+                }
+            });
+            
+            // URLを更新（ページリロードなし）
+            const url = new URL(window.location);
+            url.searchParams.set('period', period);
+            window.history.pushState({}, '', url);
+            
+            // 現在のユーザーの順位を再計算
+            const activeContent = document.querySelector(`.period-ranking-content[data-period="${period}"]`);
+            if (activeContent) {
+                const currentUserItems = activeContent.querySelectorAll('.ranking-item.current-user');
+                // 順位の再表示は必要に応じて実装
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

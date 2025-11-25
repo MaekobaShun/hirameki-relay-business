@@ -1,184 +1,175 @@
-<!DOCTYPE html>
-<html lang="ja">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>アイデアを継承 - ひらめきリレー</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
-    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-</head>
+{% block title %}アイデアを継承 - ひらめきリレー{% endblock %}
 
-<body>
-    {% include 'header.html' %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
+{% endblock %}
 
-    <main class="form-main">
-        <section class="form-card glass-card">
-            <div class="form-top">
-                <h2 class="form-title">アイデアを継承</h2>
-                <p class="form-subtitle">継承元のアイデアをブラッシュアップして、新しいアイデアを作成しましょう</p>
-            </div>
+{% block content %}
+<div class="form-main">
+    <section class="form-card glass-card">
+        <div class="form-top">
+            <h2 class="form-title">アイデアを継承</h2>
+            <p class="form-subtitle">継承元のアイデアをブラッシュアップして、新しいアイデアを作成しましょう</p>
+        </div>
 
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-            <div class="flash-messages">
-                {% for message in messages %}
-                <p>{{ message }}</p>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endwith %}
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
-            <!-- 継承元のアイデア情報 -->
-            <div class="inheritance-source">
-                <h3 class="inheritance-source-title">継承元のアイデア</h3>
-                <div class="inheritance-source-card">
-                    <div class="inheritance-source-header">
-                        <h4>{{ idea.title }}</h4>
-                        <span class="inheritance-source-category">📁 {{ idea.category }}</span>
-                    </div>
-                    <p class="inheritance-source-detail">{{ idea.detail }}</p>
-                    <div class="inheritance-source-footer">
-                        <span class="inheritance-source-author">作成者: {{ idea.author_nickname }}</span>
-                        <span class="inheritance-source-date">{{ idea.created_at }}</span>
-                    </div>
+        <!-- 継承元のアイデア情報 -->
+        <div class="inheritance-source">
+            <h3 class="inheritance-source-title">継承元のアイデア</h3>
+            <div class="inheritance-source-card">
+                <div class="inheritance-source-header">
+                    <h4>{{ idea.title }}</h4>
+                    <span class="inheritance-source-category">📁 {{ idea.category }}</span>
+                </div>
+                <p class="inheritance-source-detail">{{ idea.detail }}</p>
+                <div class="inheritance-source-footer">
+                    <span class="inheritance-source-author">作成者: {{ idea.author_nickname }}</span>
+                    <span class="inheritance-source-date">{{ idea.created_at }}</span>
                 </div>
             </div>
+        </div>
 
-            <!-- 継承フォーム -->
-            <form method="post" action="{{ url_for('save_inheritance', idea_id=idea.idea_id) }}" class="idea-form"
-                id="inheritance-form">
-                <input type="hidden" name="parent_idea_id" value="{{ idea.idea_id }}">
-                <input type="hidden" name="parent_user_id" value="{{ idea.user_id }}">
+        <!-- 継承フォーム -->
+        <form method="post" action="{{ url_for('save_inheritance', idea_id=idea.idea_id) }}" class="idea-form"
+            id="inheritance-form">
+            <input type="hidden" name="parent_idea_id" value="{{ idea.idea_id }}">
+            <input type="hidden" name="parent_user_id" value="{{ idea.user_id }}">
 
-                <div class="form-group">
-                    <label for="add_point">追加したポイント <span class="required-mark">*</span></label>
-                    <input type="text" id="add_point" name="add_point" class="form-input"
-                        placeholder="このアイデアに追加したポイントを簡潔に記入してください" required maxlength="64">
-                    <div class="character-counter">
-                        <span id="add-point-count">0/64</span>
-                    </div>
-                    <p class="form-hint">このアイデアに何を追加・改善したかを簡潔に記入してください</p>
+            <div class="form-group">
+                <label for="add_point">追加したポイント <span class="required-mark">*</span></label>
+                <input type="text" id="add_point" name="add_point" class="form-input"
+                    placeholder="このアイデアに追加したポイントを簡潔に記入してください" required maxlength="64">
+                <div class="character-counter">
+                    <span id="add-point-count">0/64</span>
                 </div>
+                <p class="form-hint">このアイデアに何を追加・改善したかを簡潔に記入してください</p>
+            </div>
 
-                <div class="form-group">
-                    <label for="add_detail">詳細（任意）</label>
-                    <textarea name="add_detail" id="add_detail" class="form-textarea"
-                        placeholder="追加したポイントの詳細や、改善内容を記入してください（任意）" rows="6"></textarea>
-                    <div class="character-counter">
-                        <span id="add-detail-count">0/500</span>
-                    </div>
+            <div class="form-group">
+                <label for="add_detail">詳細（任意）</label>
+                <textarea name="add_detail" id="add_detail" class="form-textarea"
+                    placeholder="追加したポイントの詳細や、改善内容を記入してください（任意）" rows="6"></textarea>
+                <div class="character-counter">
+                    <span id="add-detail-count">0/500</span>
                 </div>
+            </div>
 
-                <div class="form-actions inheritance-actions">
-                    <button type="submit" name="action" value="save" class="submit-button save-button">保存</button>
-                    <button type="submit" name="action" value="post" class="submit-button post-button">新規投稿</button>
-                    <a href="{{ url_for('mypage') }}" class="cancel-link">キャンセル</a>
-                </div>
-            </form>
-        </section>
-    </main>
+            <div class="form-actions inheritance-actions">
+                <button type="submit" name="action" value="save" class="submit-button save-button">保存</button>
+                <button type="submit" name="action" value="post" class="submit-button post-button">新規投稿</button>
+                <a href="{{ url_for('mypage') }}" class="cancel-link">キャンセル</a>
+            </div>
+        </form>
+    </section>
+</div>
 
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
+<div class="floating-sparkle sparkle-1">✨</div>
+<div class="floating-sparkle sparkle-2">✨</div>
+{% endblock %}
 
-    {% include 'notification_panel.html' %}
-
-    <script>
-        (function () {
-            const fields = [
-                {
-                    element: document.getElementById('add_point'),
-                    counter: document.getElementById('add-point-count'),
-                    limit: 64
-                },
-                {
-                    element: document.getElementById('add_detail'),
-                    counter: document.getElementById('add-detail-count'),
-                    limit: 500
-                }
-            ];
-
-            const getCharLength = (char) => {
-                if (/^[\u0000-\u007F]$/.test(char)) {
-                    return 1;
-                }
-                if (/^[\uFF61-\uFF9F]$/.test(char)) {
-                    return 1;
-                }
-                return 2;
-            };
-
-            const calculateLength = (text) => {
-                let length = 0;
-                for (const ch of text) {
-                    length += getCharLength(ch);
-                }
-                return length;
-            };
-
-            const truncateToLimit = (text, limit) => {
-                let length = 0;
-                let result = '';
-                for (const ch of text) {
-                    const charLength = getCharLength(ch);
-                    if (length + charLength > limit) {
-                        break;
-                    }
-                    length += charLength;
-                    result += ch;
-                }
-                return result;
-            };
-
-            const updateCounter = (field) => {
-                const { element, counter, limit } = field;
-                if (!element || !counter) {
-                    return;
-                }
-
-                let value = element.value;
-                let currentLength = calculateLength(value);
-
-                if (currentLength > limit) {
-                    value = truncateToLimit(value, limit);
-                    element.value = value;
-                    currentLength = calculateLength(value);
-                }
-
-                counter.textContent = `${currentLength}/${limit}`;
-            };
-
-            fields.forEach((field) => {
-                if (!field.element || !field.counter) {
-                    return;
-                }
-                field.element.addEventListener('input', () => updateCounter(field));
-                updateCounter(field);
-            });
-
-            // フォーム送信時の処理
-            const form = document.getElementById('inheritance-form');
-            if (form) {
-                form.addEventListener('submit', function (e) {
-                    const submitButton = e.submitter;
-                    if (submitButton && submitButton.name === 'action') {
-                        // アクションに応じてフォームのactionを変更
-                        if (submitButton.value === 'save') {
-                            form.action = "{{ url_for('save_inheritance', idea_id=idea.idea_id) }}";
-                        } else if (submitButton.value === 'post') {
-                            form.action = "{{ url_for('post_inheritance', idea_id=idea.idea_id) }}";
-                        }
-                    } else {
-                        // デフォルトは保存
-                        form.action = "{{ url_for('save_inheritance', idea_id=idea.idea_id) }}";
-                    }
-                });
+{% block extra_scripts %}
+<script>
+    (function () {
+        const fields = [
+            {
+                element: document.getElementById('add_point'),
+                counter: document.getElementById('add-point-count'),
+                limit: 64
+            },
+            {
+                element: document.getElementById('add_detail'),
+                counter: document.getElementById('add-detail-count'),
+                limit: 500
             }
-        })();
-    </script>
-</body>
+        ];
 
-</html>
+        const getCharLength = (char) => {
+            if (/^[\u0000-\u007F]$/.test(char)) {
+                return 1;
+            }
+            if (/^[\uFF61-\uFF9F]$/.test(char)) {
+                return 1;
+            }
+            return 2;
+        };
+
+        const calculateLength = (text) => {
+            let length = 0;
+            for (const ch of text) {
+                length += getCharLength(ch);
+            }
+            return length;
+        };
+
+        const truncateToLimit = (text, limit) => {
+            let length = 0;
+            let result = '';
+            for (const ch of text) {
+                const charLength = getCharLength(ch);
+                if (length + charLength > limit) {
+                    break;
+                }
+                length += charLength;
+                result += ch;
+            }
+            return result;
+        };
+
+        const updateCounter = (field) => {
+            const { element, counter, limit } = field;
+            if (!element || !counter) {
+                return;
+            }
+
+            let value = element.value;
+            let currentLength = calculateLength(value);
+
+            if (currentLength > limit) {
+                value = truncateToLimit(value, limit);
+                element.value = value;
+                currentLength = calculateLength(value);
+            }
+
+            counter.textContent = `${currentLength}/${limit}`;
+        };
+
+        fields.forEach((field) => {
+            if (!field.element || !field.counter) {
+                return;
+            }
+            field.element.addEventListener('input', () => updateCounter(field));
+            updateCounter(field);
+        });
+
+        // フォーム送信時の処理
+        const form = document.getElementById('inheritance-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                const submitButton = e.submitter;
+                if (submitButton && submitButton.name === 'action') {
+                    // アクションに応じてフォームのactionを変更
+                    if (submitButton.value === 'save') {
+                        form.action = "{{ url_for('save_inheritance', idea_id=idea.idea_id) }}";
+                    } else if (submitButton.value === 'post') {
+                        form.action = "{{ url_for('post_inheritance', idea_id=idea.idea_id) }}";
+                    }
+                } else {
+                    // デフォルトは保存
+                    form.action = "{{ url_for('save_inheritance', idea_id=idea.idea_id) }}";
+                }
+            });
+        }
+    })();
+</script>
+{% endblock %}

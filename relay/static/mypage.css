@@ -1,31 +1,25 @@
-/* リセットと基本設定 */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* MyPage Styles */
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-    background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 50%, #fef3f5 100%);
-    min-height: 100vh;
-    color: #1f2937;
-}
-
+/* .mypage-main is inside .dashboard-content */
 .mypage-main {
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 3rem 1.5rem 4rem;
+    padding: 0 0 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 1.5rem;
-    border: 1px solid rgba(233, 213, 255, 0.7);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 18px 40px rgba(147, 51, 234, 0.12);
+    background: rgba(255, 255, 255, 1);
+    border-radius: 2rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
+    position: relative;
+    overflow: hidden;
 }
 
+/* Flash messages handled differently if needed, but keeping style just in case */
 .flash-messages {
     margin: 2rem 0;
     padding: 1.25rem 1.5rem;
@@ -52,7 +46,7 @@ body {
 }
 
 .logout-button {
-    background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
     color: white;
     border: none;
     padding: 0.75rem 1.75rem;
@@ -65,10 +59,9 @@ body {
 
 .logout-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 26px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 14px 28px rgba(99, 102, 241, 0.25);
 }
 
-/* ナビゲーション */
 /* プロフィールセクション */
 .profile-section {
     margin-bottom: 2.5rem;
@@ -82,8 +75,8 @@ body {
     padding: 0.55rem 1.4rem;
     border-radius: 999px;
     border: none;
-    background: rgba(124, 58, 237, 0.12);
-    color: #6d28d9;
+    background: rgba(99, 102, 241, 0.12);
+    color: #4338ca;
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
@@ -91,9 +84,9 @@ body {
 }
 
 .profile-edit-trigger:hover {
-    background: rgba(236, 72, 153, 0.18);
+    background: rgba(99, 102, 241, 0.18);
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(236, 72, 153, 0.25);
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25);
 }
 
 .profile-card {
@@ -102,13 +95,15 @@ body {
     overflow: hidden;
 }
 
-.profile-card::after {
+.profile-card::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at top left, rgba(167, 139, 250, 0.2), transparent 55%),
-        radial-gradient(circle at bottom right, rgba(236, 72, 153, 0.2), transparent 55%);
+    border-radius: inherit;
     pointer-events: none;
+    z-index: 0;
+    background: rgba(255, 255, 255, 1);
+    opacity: 0.6;
 }
 
 .profile-edit-panel {
@@ -225,7 +220,7 @@ body {
 }
 
 .profile-edit-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -245,6 +240,8 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    position: relative;
+    z-index: 2;
 }
 
 .profile-avatar {
@@ -299,37 +296,36 @@ body {
 
 .profile-stats {
     margin-top: 2rem;
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
-    align-items: stretch;
-    justify-content: space-between;
+    position: relative;
+    z-index: 2;
 }
 
 .profile-stat {
-    background: rgba(255, 255, 255, 0.85);
     border-radius: 1.25rem;
-    padding: 1rem 1.25rem;
-    border: 1px solid rgba(167, 139, 250, 0.25);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: rgba(248, 250, 252, 0.95);
     text-align: center;
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    flex: 1;
-    min-width: 0;
+    gap: 0.25rem;
 }
 
 .profile-stat__label {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    color: #7c3aed;
+    color: #94a3b8;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 .profile-stat__value {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    color: #1f2937;
+    color: #1e1b4b;
 }
 
 /* コンテンツセクション */
@@ -340,73 +336,65 @@ body {
 
 /* タブナビゲーション */
 .tabs {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    border-bottom: 1px solid rgba(229, 231, 235, 0.8);
-    margin-bottom: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
-    align-items: stretch;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+    margin-bottom: 1.75rem;
+    padding-bottom: 0.5rem;
 }
 
 .tab-button {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.6);
-    border: none;
-    padding: 0.95rem 1.1rem;
+    padding: 0.65rem 1.3rem;
+    border-radius: 999px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: #f8fafc;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    color: #6b7280;
-    transition: all 0.25s ease;
-    position: relative;
-    display: flex;
+    color: #475569;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 1rem 1rem 0 0;
+    gap: 0.45rem;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
 }
 
 .tab-button:hover {
-    background: rgba(124, 58, 237, 0.12);
-    color: #7c3aed;
-    transform: translateY(-2px);
+    border-color: rgba(148, 163, 184, 0.6);
+    color: #0f172a;
 }
 
 .tab-button.active {
-    color: #6d28d9;
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(236, 72, 153, 0.12) 100%);
-}
-
-.tab-button.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 12%;
-    right: 12%;
-    height: 4px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+    border-color: transparent;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.22));
+    color: #1e1b4b;
+    box-shadow: 0 12px 22px rgba(99, 102, 241, 0.18);
 }
 
 .tab-label {
     font-weight: 600;
     display: inline-flex;
     gap: 0.35rem;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    white-space: nowrap;
 }
 
 .tab-count {
-    background: rgba(167, 139, 250, 0.25);
-    color: #6d28d9;
-    padding: 0.25rem 0.75rem;
+    background: rgba(148, 163, 184, 0.2);
+    color: #475569;
+    padding: 0.2rem 0.65rem;
     border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .tab-button.active .tab-count {
-    background: rgba(236, 72, 153, 0.25);
-    color: #ec4899;
+    background: rgba(255, 255, 255, 0.25);
+    color: #0f172a;
 }
 
 /* タブコンテンツ */
@@ -460,11 +448,11 @@ body {
 }
 
 .idea-card {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(229, 231, 235, 0.8);
-    border-radius: 1.25rem;
+    background: rgba(248, 250, 252, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 1.5rem;
     padding: 1.5rem;
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -473,9 +461,9 @@ body {
 }
 
 .idea-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 18px 35px rgba(124, 58, 237, 0.18);
-    border-color: rgba(124, 58, 237, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 36px rgba(15, 23, 42, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
 }
 
 .idea-header {
@@ -498,17 +486,17 @@ body {
 }
 
 .idea-category {
-    background: rgba(167, 139, 250, 0.2);
-    padding: 0.35rem 0.75rem;
+    background: rgba(99, 102, 241, 0.12);
+    padding: 0.3rem 0.8rem;
     border-radius: 999px;
     font-size: 0.8rem;
-    font-weight: 700;
-    color: #7c3aed;
+    font-weight: 600;
+    color: #4338ca;
     white-space: nowrap;
 }
 
 .idea-detail {
-    color: #4b5563;
+    color: #1f2937;
     font-size: 0.95rem;
     line-height: 1.6;
     display: -webkit-box;
@@ -546,6 +534,9 @@ body {
     font-weight: 700;
     cursor: pointer;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    white-space: nowrap;
 }
 
 .idea-delete-button:hover {
@@ -560,28 +551,31 @@ body {
 }
 
 .inheritance-button {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.9) 0%, rgba(236, 72, 153, 0.9) 100%);
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
     color: white;
     text-decoration: none;
-    padding: 0.45rem 1rem;
+    padding: 0.5rem 1.1rem;
     border-radius: 999px;
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: inline-block;
     border: none;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    white-space: nowrap;
 }
 
 .inheritance-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 14px 28px rgba(99, 102, 241, 0.25);
     color: white;
     text-decoration: none;
 }
 
 .inheritance-button:focus-visible {
-    outline: 3px solid rgba(124, 58, 237, 0.35);
+    outline: 3px solid rgba(99, 102, 241, 0.35);
     outline-offset: 2px;
 }
 
@@ -642,8 +636,6 @@ body {
     color: #ec4899;
 }
 
-
-
 /* ボタンエリア */
 .button-area {
     text-align: center;
@@ -678,160 +670,6 @@ body {
 .button-link.secondary:hover {
     box-shadow: 0 12px 24px rgba(99, 102, 241, 0.28);
 }
-
-/* レスポンシブデザイン */
-@media (max-width: 768px) {
-    .mypage-main {
-        padding: 2.5rem 1.25rem 3rem;
-    }
-
-    .profile-card {
-        padding: 2rem 1.75rem;
-    }
-
-    .profile-card__header {
-        flex-direction: column;
-        text-align: center;
-    }
-
-    .profile-stats {
-        gap: 0.75rem;
-    }
-
-    .profile-stat__label {
-        font-size: 0.80rem;
-    }
-
-    .profile-stat__value {
-        font-size: 1.2rem;
-    }
-
-    .tab-button {
-        border-radius: 1rem;
-        justify-content: center;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.70rem;
-    }
-
-    .tab-count {
-        margin-top: 0.1rem;
-        font-size: 0.70rem;
-    }
-
-    .tab-button.active::after {
-        left: 24%;
-        right: 24%;
-    }
-
-    .ideas-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .button-area {
-        flex-direction: column;
-    }
-
-    .gacha-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
-
-    .gacha-date {
-        align-self: flex-end;
-    }
-
-    .revival-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .revival-icon {
-        width: 44px;
-        height: 44px;
-        font-size: 1.4rem;
-    }
-
-    .revival-header {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-}
-
-@media (max-width: 480px) {
-    .mypage-main {
-        padding: 2rem 1rem 2.5rem;
-    }
-
-    .profile-card {
-        padding: 1.75rem 1.5rem;
-    }
-
-    .idea-card {
-        padding: 1.5rem 1.4rem;
-    }
-
-    .idea-card__title {
-        font-size: 1.2rem;
-    }
-
-    .revival-item {
-        gap: 1rem;
-    }
-}
-
-/* 通知ベルアイコン */
-.notification-bell {
-    position: relative;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(233, 213, 255, 0.8);
-    border-radius: 0.75rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    transition: background 0.25s ease, transform 0.25s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    text-decoration: none;
-}
-
-.notification-bell:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px);
-}
-
-.notification-bell:focus-visible {
-    outline: 3px solid rgba(124, 58, 237, 0.35);
-    outline-offset: 2px;
-}
-
-.bell-icon {
-    font-size: 1.5rem;
-    line-height: 1;
-}
-
-.notification-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.25rem 0.5rem;
-    border-radius: 999px;
-    min-width: 20px;
-    text-align: center;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-
 
 /* 継承カード */
 .inheritance-card {
@@ -876,4 +714,127 @@ body {
 .status-saved {
     background: rgba(107, 114, 128, 0.15);
     color: #6b7280;
+}
+
+/* Sparkles */
+.floating-sparkle {
+    position: fixed;
+    font-size: 2rem;
+    opacity: 0.5;
+    animation: float 3s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.sparkle-1 {
+    top: 5rem;
+    left: calc(var(--sidebar-width) + 2.5rem);
+    color: #c084fc;
+}
+
+.sparkle-2 {
+    bottom: 5rem;
+    right: 2.5rem;
+    color: #f9a8d4;
+    animation-delay: 1s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    50% {
+        transform: translateY(-10px);
+        opacity: 0.8;
+    }
+}
+
+/* レスポンシブデザイン */
+@media (max-width: 768px) {
+    .mypage-main {
+        padding: 2.5rem 1.25rem 3rem;
+    }
+    
+    .sparkle-1 {
+        left: 2.5rem;
+    }
+
+    .profile-card {
+        padding: 2rem 1.75rem;
+    }
+
+    .profile-card__header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-stats {
+        gap: 0.75rem;
+    }
+
+    .profile-stat__label {
+        font-size: 0.80rem;
+    }
+
+    .profile-stat__value {
+        font-size: 1.2rem;
+    }
+
+    .tab-button {
+        border-radius: 1rem;
+        justify-content: center;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.70rem;
+        writing-mode: horizontal-tb;
+        text-orientation: mixed;
+    }
+
+    .tab-count {
+        margin-top: 0;
+        font-size: 0.70rem;
+    }
+
+    .tab-button.active::after {
+        left: 24%;
+        right: 24%;
+    }
+
+    .ideas-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .button-area {
+        flex-direction: column;
+    }
+
+    .gacha-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .gacha-date {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .mypage-main {
+        padding: 2rem 1rem 2.5rem;
+    }
+
+    .profile-card {
+        padding: 1.75rem 1.5rem;
+    }
+
+    .idea-card {
+        padding: 1.5rem 1.4rem;
+    }
+
+    .idea-card__title {
+        font-size: 1.2rem;
+    }
 }

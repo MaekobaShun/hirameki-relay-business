@@ -1,118 +1,95 @@
-<!DOCTYPE html>
-<html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ひらめきガチャ - ひらめきリレー</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-        <link rel="stylesheet" href="{{ url_for('static', filename='gacha.css') }}">
-        <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-        <script>
-            // チケット数を更新する関数
-            function updateTicketCount(newCount) {
-                const ticketCountEl = document.getElementById('ticket-count');
-                const spinButton = document.getElementById('spin-button');
-                if (ticketCountEl) {
-                    ticketCountEl.textContent = newCount;
-                }
-                if (spinButton) {
-                    spinButton.disabled = newCount < 1;
-                }
-            }
-            
-            // ページロード時にチケット数をセッションから取得（バックアップ用）
-            window.addEventListener('load', function() {
-                // チケット数はサーバーから渡された値を使用
-                const currentTickets = {{ tickets }};
-                updateTicketCount(currentTickets);
-            });
-        </script>
-    </head>
-    <body>
-        <header class="header">
-            <div class="header-content">
-                <div class="header-left">
-                    <div class="logo-icon">💡</div>
-                    <h1 class="logo-text">ひらめきリレー</h1>
-                </div>
-                <div class="header-right">
-                    <button class="menu-toggle" type="button" aria-label="メニューを開く" aria-expanded="false">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <nav class="mypage-nav">
-                        <a href="{{ url_for('index') }}">ホーム</a>
-                        <a href="{{ url_for('form') }}">投稿</a>
-                        <a href="{{ url_for('gacha') }}" class="active">ガチャ</a>
-                        <a href="{{ url_for('mypage') }}">マイページ</a>
-                        <a href="{{ url_for('ranking') }}">ランキング</a>
-                    </nav>
+{% extends "base.html" %}
+
+{% block title %}ひらめきガチャ - ひらめきリレー{% endblock %}
+
+{% block header_intro %}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='gacha.css') }}">
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // チケット数を更新する関数
+    function updateTicketCount(newCount) {
+        const ticketCountEl = document.getElementById('ticket-count');
+        const spinButton = document.getElementById('spin-button');
+        if (ticketCountEl) {
+            ticketCountEl.textContent = newCount;
+        }
+        if (spinButton) {
+            spinButton.disabled = newCount < 1;
+        }
+    }
+    
+    // ページロード時にチケット数をセッションから取得（バックアップ用）
+    window.addEventListener('load', function() {
+        // チケット数はサーバーから渡された値を使用
+        const currentTickets = {{ tickets }};
+        updateTicketCount(currentTickets);
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="gacha-main">
+    <section class="gacha-card">
+        <div class="gacha-icon">💡</div>
+        <h2 class="gacha-title">ひらめきガチャ</h2>
+        <p class="gacha-description">
+            <strong>次のアイデアは、ここからはじまる。</strong>
+        </p>
+        <div class="ticket-display">
+            <span class="ticket-label">🎫 ガチャチケット</span>
+            <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
+            <span class="ticket-unit">枚</span>
+        </div>
+        
+        <form action="{{ url_for('spin') }}" method="get">
+            {% set category_options = [
+                {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'icon': '🌈'},
+                {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'icon': '📈'},
+                {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'icon': '🎓'},
+                {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'icon': '🎉'},
+                {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'icon': '🎨'},
+                {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'icon': '🏡'},
+                {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'icon': '💬'},
+                {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'icon': '🛠️'},
+                {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'icon': '✨'}
+            ] %}
+            {% set selected_value = selected_category or '' %}
+            <div class="category-section">
+                <p id="category-label" class="category-heading">カテゴリを選択</p>
+                <div class="category-selector" role="radiogroup" aria-labelledby="category-label">
+                    {% for option in category_options %}
+                        {% set option_id = 'category-' ~ loop.index %}
+                        <div class="category-item">
+                            <input
+                                type="radio"
+                                name="category"
+                                id="{{ option_id }}"
+                                value="{{ option.value }}"
+                                class="category-input"
+                                {% if selected_value == option.value %}checked{% endif %}
+                            >
+                            <label for="{{ option_id }}" class="category-option">
+                                <span class="category-header">
+                                    <span class="category-icon" aria-hidden="true">{{ option.icon }}</span>
+                                    <span class="category-name">{{ option.label }}</span>
+                                </span>
+                                <span class="category-description">{{ option.description }}</span>
+                            </label>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
-        </header>
+            <button type="submit" class="spin-button" id="spin-button" {% if tickets < 1 %}disabled{% endif %}>
+                ガチャを回す
+            </button>
+        </form>
 
-        <main class="gacha-main">
-            <section class="gacha-card">
-                <div class="gacha-icon">💡</div>
-                <h2 class="gacha-title">ひらめきガチャ</h2>
-                <p class="gacha-description">
-                    <strong>次のアイデアは、ここからはじまる。</strong>
-                </p>
-                <div class="ticket-display">
-                    <span class="ticket-label">🎫 ガチャチケット</span>
-                    <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
-                    <span class="ticket-unit">枚</span>
-                </div>
-                
-                <form action="{{ url_for('spin') }}" method="get">
-                    {% set category_options = [
-                        {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'icon': '🌈'},
-                        {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'icon': '📈'},
-                        {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'icon': '🎓'},
-                        {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'icon': '🎉'},
-                        {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'icon': '🎨'},
-                        {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'icon': '🏡'},
-                        {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'icon': '💬'},
-                        {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'icon': '🛠️'},
-                        {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'icon': '✨'}
-                    ] %}
-                    {% set selected_value = selected_category or '' %}
-                    <div class="category-section">
-                        <p id="category-label" class="category-heading">カテゴリを選択</p>
-                        <div class="category-selector" role="radiogroup" aria-labelledby="category-label">
-                            {% for option in category_options %}
-                                {% set option_id = 'category-' ~ loop.index %}
-                                <div class="category-item">
-                                    <input
-                                        type="radio"
-                                        name="category"
-                                        id="{{ option_id }}"
-                                        value="{{ option.value }}"
-                                        class="category-input"
-                                        {% if selected_value == option.value %}checked{% endif %}
-                                    >
-                                    <label for="{{ option_id }}" class="category-option">
-                                        <span class="category-header">
-                                            <span class="category-icon" aria-hidden="true">{{ option.icon }}</span>
-                                            <span class="category-name">{{ option.label }}</span>
-                                        </span>
-                                        <span class="category-description">{{ option.description }}</span>
-                                    </label>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <button type="submit" class="spin-button" id="spin-button" {% if tickets < 1 %}disabled{% endif %}>
-                        ガチャを回す
-                    </button>
-                </form>
-
-                <a href="{{ url_for('index') }}" class="link-secondary">トップページに戻る</a>
-            </section>
-        </main>
-
-        <div class="floating-sparkle sparkle-1">✨</div>
-        <div class="floating-sparkle sparkle-2">✨</div>
-    </body>
-</html>
+        <a href="{{ url_for('index') }}" class="link-secondary">トップページに戻る</a>
+    </section>
+</div>
+{% endblock %}

@@ -4,7 +4,6 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>ユーザー登録 - ひらめきリレー</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
     </head>
     <body>
@@ -20,7 +19,6 @@
         <main class="signup-main">
             <section class="signup-card glass-card">
                 <h2 class="signup-title">ユーザー登録</h2>
-
                 {% if success_message %}
                     <div class="status-message status-success">
                         {{ success_message }}<br>
@@ -89,8 +87,6 @@
             </section>
         </main>
 
-        <div class="floating-sparkle sparkle-1">✨</div>
-        <div class="floating-sparkle sparkle-2">✨</div>
 
         <script>
             document.querySelectorAll('.password-toggle button').forEach(function(button) {
@@ -112,4 +108,3 @@
         </script>
     </body>
 </html>
-

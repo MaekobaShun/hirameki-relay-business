@@ -1,330 +1,309 @@
-<!DOCTYPE html>
-<html lang="ja">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マイページ - ひらめきリレー</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='mypage.css') }}">
-    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-</head>
+{% block title %}マイページ - ひらめきリレー{% endblock %}
 
-<body>
-    {% include 'header.html' %}
+{% block header_intro %}
+{% endblock %}
 
-    <main class="mypage-main">
-        <section class="profile-section">
-            <div class="profile-card glass-card">
-                <div class="profile-card__header">
-                    <div class="profile-avatar">
-                        {% if user.icon_path %}
-                        {% if user.icon_path.startswith('uploads/') %}
-                        <img src="{{ url_for('uploaded_file', filename=user.icon_path[8:]) }}" alt="ユーザーアイコン"
-                            class="avatar-image">
-                        {% elif user.icon_path.startswith('http') %}
-                        <img src="{{ user.icon_path }}" alt="ユーザーアイコン" class="avatar-image">
-                        {% else %}
-                        <img src="{{ url_for('static', filename=user.icon_path) }}" alt="ユーザーアイコン" class="avatar-image">
-                        {% endif %}
-                        {% else %}
-                        <span class="avatar-text">{{ user.nickname[0] if user.nickname else 'U' }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="profile-info">
-                        <h2>{{ user.nickname }}</h2>
-                        <p class="profile-userid">@{{ user.user_id }}</p>
-                        <p class="profile-date">登録日: {{ user.created_at }}</p>
-                        <button type="button" class="profile-edit-trigger" id="profile-edit-open">プロフィールを編集</button>
-                    </div>
-                </div>
-                <div class="profile-stats">
-                    <div class="profile-stat">
-                        <span class="profile-stat__label">投稿</span>
-                        <span class="profile-stat__value">{{ ideas|length }}</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="profile-stat__label">ガチャ</span>
-                        <span class="profile-stat__value">{{ gacha_results|length }}</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="profile-stat__label">継承</span>
-                        <span class="profile-stat__value">{{ inheritance_items|length }}</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='mypage.css') }}">
+{% endblock %}
 
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="flash-messages glass-card">
-            {% for message in messages %}
-            <p>{{ message }}</p>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
+{% block extra_scripts %}
+<script>
+    // タブ切り替え機能
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const editOpenButton = document.getElementById('profile-edit-open');
+        const editPanel = document.getElementById('profile-edit-panel');
+        const editCloseButton = document.getElementById('profile-edit-close');
+        const ideaCards = document.querySelectorAll('.idea-card[role="button"]');
+        const logoutForm = document.getElementById('logout-form');
 
-        <section class="content-section glass-card">
-            <!-- タブナビゲーション -->
-            <div class="tabs">
-                <button class="tab-button active" data-tab="posted">
-                    <span class="tab-label">投稿</span>
-                    <span class="tab-count">{{ ideas|length }}</span>
-                </button>
-                <button class="tab-button" data-tab="gacha">
-                    <span class="tab-label">ガチャ</span>
-                    <span class="tab-count">{{ gacha_results|length }}</span>
-                </button>
-                <button class="tab-button" data-tab="inheritance">
-                    <span class="tab-label">継承</span>
-                    <span class="tab-count">{{ inheritance_items|length }}</span>
-                </button>
-            </div>
 
-            <!-- 投稿したアイデアタブ -->
-            <div id="posted-tab" class="tab-content active">
-                {% if ideas == [] %}
-                <p class="empty-message">まだ投稿したアイデアがありません。</p>
-                {% else %}
-                <div class="ideas-grid">
-                    {% for idea in ideas %}
-                    <div class="idea-card" role="button" tabindex="0"
-                        data-detail-url="{{ url_for('post_view', idea_id=idea.idea_id) }}">
-                        <div class="idea-header">
-                            <h4>{{ idea.title }}</h4>
-                            <span class="idea-category">{{ idea.category }}</span>
-                        </div>
-                        <p class="idea-detail">{{ idea.detail }}</p>
-                        <div class="idea-footer">
-                            <span class="idea-date">{{ idea.created_at }}</span>
-                            <div class="idea-actions">
-                                <a href="{{ url_for('inheritance_form', idea_id=idea.idea_id) }}"
-                                    class="inheritance-button" onclick="event.stopPropagation();">継承</a>
-                                <form method="post" action="{{ url_for('delete_idea', idea_id=idea.idea_id) }}"
-                                    class="idea-delete-form">
-                                    <button type="submit" class="idea-delete-button">削除</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const targetTab = this.getAttribute('data-tab');
 
-            <!-- ガチャで獲得したアイデアタブ -->
-            <div id="gacha-tab" class="tab-content">
-                {% if gacha_results == [] %}
-                <p class="empty-message">まだガチャを回していません。</p>
-                {% else %}
-                <div class="ideas-grid">
-                    {% for result in gacha_results %}
-                    <div class="idea-card gacha-card" role="button" tabindex="0"
-                        data-detail-url="{{ url_for('post_view', idea_id=result.idea_id) }}">
-                        <div class="idea-header">
-                            <h4>{{ result.idea_title }}</h4>
-                            <span class="idea-category gacha-badge">{{ result.category }}</span>
-                        </div>
-                        <p class="idea-detail">{{ result.detail }}</p>
-                        <div class="idea-footer">
-                            <span class="idea-date">{{ result.created_at }}</span>
-                            <a href="{{ url_for('inheritance_form', idea_id=result.idea_id) }}"
-                                class="inheritance-button" onclick="event.stopPropagation();">継承</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
+                // すべてのタブボタンからactiveクラスを削除
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                // クリックされたタブボタンにactiveクラスを追加
+                this.classList.add('active');
 
-            <!-- 継承タブ -->
-            <div id="inheritance-tab" class="tab-content">
-                {% if inheritance_items == [] %}
-                <p class="empty-message">まだ継承したアイデアがありません。</p>
-                {% else %}
-                <div class="ideas-grid">
-                    {% for item in inheritance_items %}
-                    <div class="idea-card inheritance-card" role="button" tabindex="0"
-                        data-detail-url="{{ url_for('inheritance_view', inheritance_id=item.inheritance_id) }}">
-                        <div class="idea-header">
-                            <h4>{{ item.parent_title }}</h4>
-                            <span class="idea-category">{{ item.parent_category }}</span>
-                        </div>
-                        {% if item.add_point %}
-                        <div class="inheritance-add-info">
-                            <span class="inheritance-add-badge">{{ item.add_point }}</span>
-                        </div>
-                        {% endif %}
-                        <div class="idea-footer">
-                            <span class="idea-date">{{ item.created_at }}</span>
-                            <div class="inheritance-status-badge">
-                                {% if item.child_idea_id %}
-                                <span class="status-posted">投稿済み</span>
-                                {% else %}
-                                <span class="status-saved">保存済み</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-        </section>
+                // すべてのタブコンテンツを非表示
+                tabContents.forEach(content => content.classList.remove('active'));
+                // 選択されたタブコンテンツを表示
+                document.getElementById(targetTab + '-tab').classList.add('active');
+            });
+        });
 
-        {% include 'notification_panel.html' %}
+        const openEditPanel = () => {
+            editPanel.classList.add('open');
+            editPanel.setAttribute('aria-hidden', 'false');
+        };
 
-        <div class="profile-edit-panel" id="profile-edit-panel" aria-hidden="true">
-            <div class="profile-edit-panel__content">
-                <div class="profile-edit-panel__header">
-                    <h3>プロフィール編集</h3>
-                    <button type="button" class="profile-edit-close" id="profile-edit-close" aria-label="閉じる">×</button>
-                </div>
-                <form class="profile-edit-form" method="post" action="{{ url_for('update_profile') }}"
-                    enctype="multipart/form-data">
-                    <div class="profile-edit-field">
-                        <label for="nickname">ニックネーム</label>
-                        <input type="text" id="nickname" name="nickname" value="{{ user.nickname }}" maxlength="32"
-                            required>
-                    </div>
-                    <div class="profile-edit-field">
-                        <label for="icon">アイコン画像</label>
-                        <input type="file" id="icon" name="icon" accept="image/png,image/jpeg,image/gif">
-                        <p class="profile-edit-note">PNG/JPG/GIF（2MB程度まで推奨）</p>
-                    </div>
+        const closeEditPanel = () => {
+            editPanel.classList.remove('open');
+            editPanel.setAttribute('aria-hidden', 'true');
+        };
+
+        if (editOpenButton) {
+            editOpenButton.addEventListener('click', openEditPanel);
+        }
+
+        if (editCloseButton) {
+            editCloseButton.addEventListener('click', closeEditPanel);
+        }
+
+        editPanel.addEventListener('click', (event) => {
+            if (event.target === editPanel) {
+                closeEditPanel();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && editPanel.classList.contains('open')) {
+                closeEditPanel();
+            }
+        });
+
+        const navigateToDetail = (card) => {
+            const url = card.dataset.detailUrl;
+            if (url) {
+                window.location.href = url;
+            }
+        };
+
+        ideaCards.forEach((card) => {
+            card.addEventListener('click', () => navigateToDetail(card));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navigateToDetail(card);
+                }
+            });
+
+            const deleteForm = card.querySelector('.idea-delete-form');
+            if (deleteForm) {
+                deleteForm.addEventListener('click', (event) => event.stopPropagation());
+                deleteForm.addEventListener('keydown', (event) => event.stopPropagation());
+                deleteForm.addEventListener('submit', (event) => {
+                    event.stopPropagation();
+                    if (!confirm('この投稿を削除しますか？この操作は取り消せません。')) {
+                        event.preventDefault();
+                    }
+                });
+            }
+
+            const deleteButton = card.querySelector('.idea-delete-button');
+            if (deleteButton) {
+                deleteButton.addEventListener('click', (event) => event.stopPropagation());
+                deleteButton.addEventListener('keydown', (event) => event.stopPropagation());
+            }
+        });
+
+        if (logoutForm) {
+            logoutForm.addEventListener('submit', (event) => {
+                if (!confirm('ログアウトしますか？')) {
+                    event.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="mypage-main">
+    <section class="profile-section">
+        <div class="profile-card glass-card">
+            <div class="profile-card__header">
+                <div class="profile-avatar">
                     {% if user.icon_path %}
-                    <div class="profile-edit-field profile-edit-checkbox">
-                        <label>
-                            <input type="checkbox" name="remove_icon" value="1">
-                            現在のアイコンを削除する
-                        </label>
+                    {% if user.icon_path.startswith('uploads/') %}
+                    <img src="{{ url_for('uploaded_file', filename=user.icon_path[8:]) }}" alt="ユーザーアイコン"
+                        class="avatar-image">
+                    {% elif user.icon_path.startswith('http') %}
+                    <img src="{{ user.icon_path }}" alt="ユーザーアイコン" class="avatar-image">
+                    {% else %}
+                    <img src="{{ url_for('static', filename=user.icon_path) }}" alt="ユーザーアイコン" class="avatar-image">
+                    {% endif %}
+                    {% else %}
+                    <span class="avatar-text">{{ user.nickname[0] if user.nickname else 'U' }}</span>
+                    {% endif %}
+                </div>
+                <div class="profile-info">
+                    <h2>{{ user.nickname }}</h2>
+                    <p class="profile-userid">@{{ user.user_id }}</p>
+                    <p class="profile-date">登録日: {{ user.created_at }}</p>
+                    <button type="button" class="profile-edit-trigger" id="profile-edit-open">プロフィール編集</button>
+                </div>
+            </div>
+            <div class="profile-stats">
+                <div class="profile-stat">
+                    <span class="profile-stat__label">投稿</span>
+                    <span class="profile-stat__value">{{ ideas|length }}</span>
+                </div>
+                <div class="profile-stat">
+                    <span class="profile-stat__label">ガチャ</span>
+                    <span class="profile-stat__value">{{ gacha_results|length }}</span>
+                </div>
+                <div class="profile-stat">
+                    <span class="profile-stat__label">継承</span>
+                    <span class="profile-stat__value">{{ inheritance_items|length }}</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- flash messages handled in base.html usually, but here is fine too if duplication avoided -->
+    
+    <section class="content-section glass-card">
+        <!-- タブナビゲーション -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="posted">
+                <span class="tab-label">投稿</span>
+                <span class="tab-count">{{ ideas|length }}</span>
+            </button>
+            <button class="tab-button" data-tab="gacha">
+                <span class="tab-label">ガチャ</span>
+                <span class="tab-count">{{ gacha_results|length }}</span>
+            </button>
+            <button class="tab-button" data-tab="inheritance">
+                <span class="tab-label">継承</span>
+                <span class="tab-count">{{ inheritance_items|length }}</span>
+            </button>
+        </div>
+
+        <!-- 投稿したアイデアタブ -->
+        <div id="posted-tab" class="tab-content active">
+            {% if ideas == [] %}
+            <p class="empty-message">まだ投稿したアイデアがありません。</p>
+            {% else %}
+            <div class="ideas-grid">
+                {% for idea in ideas %}
+                <div class="idea-card" role="button" tabindex="0"
+                    data-detail-url="{{ url_for('post_view', idea_id=idea.idea_id) }}">
+                    <div class="idea-header">
+                        <h4>{{ idea.title }}</h4>
+                        <span class="idea-category">{{ idea.category }}</span>
+                    </div>
+                    <p class="idea-detail">{{ idea.detail }}</p>
+                    <div class="idea-footer">
+                        <span class="idea-date">{{ idea.created_at }}</span>
+                        <div class="idea-actions">
+                            <a href="{{ url_for('inheritance_form', idea_id=idea.idea_id) }}"
+                                class="inheritance-button" onclick="event.stopPropagation();">継承</a>
+                            <form method="post" action="{{ url_for('delete_idea', idea_id=idea.idea_id) }}"
+                                class="idea-delete-form">
+                                <button type="submit" class="idea-delete-button">削除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ガチャで獲得したアイデアタブ -->
+        <div id="gacha-tab" class="tab-content">
+            {% if gacha_results == [] %}
+            <p class="empty-message">まだガチャを回していません。</p>
+            {% else %}
+            <div class="ideas-grid">
+                {% for result in gacha_results %}
+                <div class="idea-card gacha-card" role="button" tabindex="0"
+                    data-detail-url="{{ url_for('post_view', idea_id=result.idea_id) }}">
+                    <div class="idea-header">
+                        <h4>{{ result.idea_title }}</h4>
+                        <span class="idea-category gacha-badge">{{ result.category }}</span>
+                    </div>
+                    <p class="idea-detail">{{ result.detail }}</p>
+                    <div class="idea-footer">
+                        <span class="idea-date">{{ result.created_at }}</span>
+                        <a href="{{ url_for('inheritance_form', idea_id=result.idea_id) }}"
+                            class="inheritance-button" onclick="event.stopPropagation();">継承</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 継承タブ -->
+        <div id="inheritance-tab" class="tab-content">
+            {% if inheritance_items == [] %}
+            <p class="empty-message">まだ継承したアイデアがありません。</p>
+            {% else %}
+            <div class="ideas-grid">
+                {% for item in inheritance_items %}
+                <div class="idea-card inheritance-card" role="button" tabindex="0"
+                    data-detail-url="{{ url_for('inheritance_view', inheritance_id=item.inheritance_id) }}">
+                    <div class="idea-header">
+                        <h4>{{ item.parent_title }}</h4>
+                        <span class="idea-category">{{ item.parent_category }}</span>
+                    </div>
+                    {% if item.add_point %}
+                    <div class="inheritance-add-info">
+                        <span class="inheritance-add-badge">{{ item.add_point }}</span>
                     </div>
                     {% endif %}
-                    <div class="profile-edit-actions">
-                        <button type="submit" class="profile-edit-button">変更を保存</button>
+                    <div class="idea-footer">
+                        <span class="idea-date">{{ item.created_at }}</span>
+                        <div class="inheritance-status-badge">
+                            {% if item.child_idea_id %}
+                            <span class="status-posted">公開済み</span>
+                            {% else %}
+                            <span class="status-saved">保存済み</span>
+                            {% endif %}
+                        </div>
                     </div>
-                </form>
+                </div>
+                {% endfor %}
             </div>
+            {% endif %}
         </div>
+    </section>
 
-        <footer class="page-footer">
-            <form method="post" action="{{ url_for('logout') }}" id="logout-form">
-                <button type="submit" class="logout-button">ログアウト</button>
+    <div class="profile-edit-panel" id="profile-edit-panel" aria-hidden="true">
+        <div class="profile-edit-panel__content">
+            <div class="profile-edit-panel__header">
+                <h3>プロフィール編集</h3>
+                <button type="button" class="profile-edit-close" id="profile-edit-close" aria-label="閉じる">×</button>
+            </div>
+            <form class="profile-edit-form" method="post" action="{{ url_for('update_profile') }}"
+                enctype="multipart/form-data">
+                <div class="profile-edit-field">
+                    <label for="nickname">ニックネーム</label>
+                    <input type="text" id="nickname" name="nickname" value="{{ user.nickname }}" maxlength="32"
+                        required>
+                </div>
+                <div class="profile-edit-field">
+                    <label for="icon">アイコン画像</label>
+                    <input type="file" id="icon" name="icon" accept="image/png,image/jpeg,image/gif">
+                    <p class="profile-edit-note">PNG/JPG/GIF（2MB程度まで推奨）</p>
+                </div>
+                {% if user.icon_path %}
+                <div class="profile-edit-field profile-edit-checkbox">
+                    <label>
+                        <input type="checkbox" name="remove_icon" value="1">
+                        現在のアイコンを削除する
+                    </label>
+                </div>
+                {% endif %}
+                <div class="profile-edit-actions">
+                    <button type="submit" class="profile-edit-button">変更を保存</button>
+                </div>
             </form>
-        </footer>
-    </main>
+        </div>
+    </div>
 
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
-
-    <script>
-        // タブ切り替え機能
-        document.addEventListener('DOMContentLoaded', function () {
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-            const editOpenButton = document.getElementById('profile-edit-open');
-            const editPanel = document.getElementById('profile-edit-panel');
-            const editCloseButton = document.getElementById('profile-edit-close');
-            const ideaCards = document.querySelectorAll('.idea-card[role="button"]');
-            const logoutForm = document.getElementById('logout-form');
-
-
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function () {
-                    const targetTab = this.getAttribute('data-tab');
-
-                    // すべてのタブボタンからactiveクラスを削除
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    // クリックされたタブボタンにactiveクラスを追加
-                    this.classList.add('active');
-
-                    // すべてのタブコンテンツを非表示
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    // 選択されたタブコンテンツを表示
-                    document.getElementById(targetTab + '-tab').classList.add('active');
-                });
-            });
-
-            const openEditPanel = () => {
-                editPanel.classList.add('open');
-                editPanel.setAttribute('aria-hidden', 'false');
-            };
-
-            const closeEditPanel = () => {
-                editPanel.classList.remove('open');
-                editPanel.setAttribute('aria-hidden', 'true');
-            };
-
-            if (editOpenButton) {
-                editOpenButton.addEventListener('click', openEditPanel);
-            }
-
-            if (editCloseButton) {
-                editCloseButton.addEventListener('click', closeEditPanel);
-            }
-
-            editPanel.addEventListener('click', (event) => {
-                if (event.target === editPanel) {
-                    closeEditPanel();
-                }
-            });
-
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && editPanel.classList.contains('open')) {
-                    closeEditPanel();
-                }
-            });
-
-            const navigateToDetail = (card) => {
-                const url = card.dataset.detailUrl;
-                if (url) {
-                    window.location.href = url;
-                }
-            };
-
-            ideaCards.forEach((card) => {
-                card.addEventListener('click', () => navigateToDetail(card));
-                card.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        navigateToDetail(card);
-                    }
-                });
-
-                const deleteForm = card.querySelector('.idea-delete-form');
-                if (deleteForm) {
-                    deleteForm.addEventListener('click', (event) => event.stopPropagation());
-                    deleteForm.addEventListener('keydown', (event) => event.stopPropagation());
-                    deleteForm.addEventListener('submit', (event) => {
-                        event.stopPropagation();
-                        if (!confirm('この投稿を削除しますか？この操作は取り消せません。')) {
-                            event.preventDefault();
-                        }
-                    });
-                }
-
-                const deleteButton = card.querySelector('.idea-delete-button');
-                if (deleteButton) {
-                    deleteButton.addEventListener('click', (event) => event.stopPropagation());
-                    deleteButton.addEventListener('keydown', (event) => event.stopPropagation());
-                }
-            });
-
-            if (logoutForm) {
-                logoutForm.addEventListener('submit', (event) => {
-                    if (!confirm('ログアウトしますか？')) {
-                        event.preventDefault();
-                    }
-                });
-            }
-
-
-
-
-        });
-    </script>
-</body>
-
-</html>
+    <footer class="page-footer">
+        <form method="post" action="{{ url_for('logout') }}" id="logout-form">
+            <button type="submit" class="logout-button">ログアウト</button>
+        </form>
+    </footer>
+</div>
+{% endblock %}

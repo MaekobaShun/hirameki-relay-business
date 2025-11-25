@@ -1,154 +1,139 @@
-<!DOCTYPE html>
-<html lang="ja">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ひらめきリレー - アイデア投稿SNS</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
-    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-</head>
+{% block title %}ひらめきリレー - アイデア投稿{% endblock %}
 
-<body>
-    {% include 'header.html' %}
+{% block header_intro %}
+{% endblock %}
 
-    <main class="form-main">
-        <section class="form-card glass-card">
-            <div class="form-top">
-                <h2 class="form-title">アイデアを投稿</h2>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="form-main">
+    <section class="form-card glass-card">
+        <div class="form-top">
+            <h2 class="form-title">アイデアを投稿</h2>
+        </div>
+
+        <!-- Flash messages are handled in base.html, but if we want them inside the card, we can keep them here too or rely on base. 
+             base.html handles them at the top of main content. I will remove them from here to avoid duplication. -->
+        
+        <form method="post" action="{{ url_for('post') }}" class="idea-form">
+            <div class="form-group">
+                <label for="title">タイトル</label>
+                <input type="text" id="title" name="title" class="form-input" placeholder="アイデアのタイトルを入力" required>
+                <div class="character-counter">
+                    <span id="title-count">0/60</span>
+                </div>
             </div>
 
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-            <div class="flash-messages">
-                {% for message in messages %}
-                <p>{{ message }}</p>
-                {% endfor %}
+            <div class="form-group">
+                <label for="detail">詳細</label>
+                <textarea name="detail" id="detail" class="form-textarea" placeholder="アイデアの詳細を入力してください"
+                    required></textarea>
+                <div class="character-counter">
+                    <span id="detail-count">0/280</span>
+                </div>
             </div>
-            {% endif %}
-            {% endwith %}
 
-            <form method="post" action="{{ url_for('post') }}" class="idea-form">
-                <div class="form-group">
-                    <label for="title">タイトル</label>
-                    <input type="text" id="title" name="title" class="form-input" placeholder="アイデアのタイトルを入力" required>
-                    <div class="character-counter">
-                        <span id="title-count">0/60</span>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="category">カテゴリ</label>
+                <select name="category" id="category" class="form-select" required>
+                    <option value="">カテゴリを選択してください</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
 
-                <div class="form-group">
-                    <label for="detail">詳細</label>
-                    <textarea name="detail" id="detail" class="form-textarea" placeholder="アイデアの詳細を入力してください"
-                        required></textarea>
-                    <div class="character-counter">
-                        <span id="detail-count">0/280</span>
-                    </div>
-                </div>
+            <div class="form-actions">
+                <button type="submit" class="submit-button">投稿する</button>
+                <a href="{{ url_for('index') }}" class="cancel-link">キャンセル</a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
 
-                <div class="form-group">
-                    <label for="category">カテゴリ</label>
-                    <select name="category" id="category" class="form-select" required>
-                        <option value="">カテゴリを選択してください</option>
-                        <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
-                        <option value="教育">教育</option>
-                        <option value="エンタメ">エンタメ</option>
-                        <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
-                        <option value="生活・ライフスタイル">生活・ライフスタイル</option>
-                        <option value="コミュニケーション">コミュニケーション</option>
-                        <option value="開発者ツール">開発者ツール</option>
-                        <option value="その他">その他</option>
-                    </select>
-                </div>
+{% block extra_scripts %}
+<script>
+    (function () {
+        const fields = [
+            {
+                element: document.querySelector('input[name="title"]'),
+                counter: document.getElementById('title-count'),
+                limit: 60
+            },
+            {
+                element: document.querySelector('textarea[name="detail"]'),
+                counter: document.getElementById('detail-count'),
+                limit: 280
+            }
+        ];
 
-                <div class="form-actions">
-                    <button type="submit" class="submit-button">投稿する</button>
-                    <a href="{{ url_for('index') }}" class="cancel-link">キャンセル</a>
-                </div>
-            </form>
-        </section>
-    </main>
+        const getCharLength = (char) => {
+            if (/^[\u0000-\u007F]$/.test(char)) {
+                return 1;
+            }
+            if (/^[\uFF61-\uFF9F]$/.test(char)) {
+                return 1;
+            }
+            return 2;
+        };
 
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
+        const calculateLength = (text) => {
+            let length = 0;
+            for (const ch of text) {
+                length += getCharLength(ch);
+            }
+            return length;
+        };
 
-    {% include 'notification_panel.html' %}
-
-    <script>
-        (function () {
-            const fields = [
-                {
-                    element: document.querySelector('input[name="title"]'),
-                    counter: document.getElementById('title-count'),
-                    limit: 60
-                },
-                {
-                    element: document.querySelector('textarea[name="detail"]'),
-                    counter: document.getElementById('detail-count'),
-                    limit: 280
+        const truncateToLimit = (text, limit) => {
+            let length = 0;
+            let result = '';
+            for (const ch of text) {
+                const charLength = getCharLength(ch);
+                if (length + charLength > limit) {
+                    break;
                 }
-            ];
+                length += charLength;
+                result += ch;
+            }
+            return result;
+        };
 
-            const getCharLength = (char) => {
-                if (/^[\u0000-\u007F]$/.test(char)) {
-                    return 1;
-                }
-                if (/^[\uFF61-\uFF9F]$/.test(char)) {
-                    return 1;
-                }
-                return 2;
-            };
+        const updateCounter = (field) => {
+            const { element, counter, limit } = field;
+            if (!element || !counter) {
+                return;
+            }
 
-            const calculateLength = (text) => {
-                let length = 0;
-                for (const ch of text) {
-                    length += getCharLength(ch);
-                }
-                return length;
-            };
+            let value = element.value;
+            let currentLength = calculateLength(value);
 
-            const truncateToLimit = (text, limit) => {
-                let length = 0;
-                let result = '';
-                for (const ch of text) {
-                    const charLength = getCharLength(ch);
-                    if (length + charLength > limit) {
-                        break;
-                    }
-                    length += charLength;
-                    result += ch;
-                }
-                return result;
-            };
+            if (currentLength > limit) {
+                value = truncateToLimit(value, limit);
+                element.value = value;
+                currentLength = calculateLength(value);
+            }
 
-            const updateCounter = (field) => {
-                const { element, counter, limit } = field;
-                if (!element || !counter) {
-                    return;
-                }
+            counter.textContent = `${currentLength}/${limit}`;
+        };
 
-                let value = element.value;
-                let currentLength = calculateLength(value);
-
-                if (currentLength > limit) {
-                    value = truncateToLimit(value, limit);
-                    element.value = value;
-                    currentLength = calculateLength(value);
-                }
-
-                counter.textContent = `${currentLength}/${limit}`;
-            };
-
-            fields.forEach((field) => {
-                if (!field.element || !field.counter) {
-                    return;
-                }
-                field.element.addEventListener('input', () => updateCounter(field));
-                updateCounter(field);
-            });
-        })();
-    </script>
-</body>
-
-</html>
+        fields.forEach((field) => {
+            if (!field.element || !field.counter) {
+                return;
+            }
+            field.element.addEventListener('input', () => updateCounter(field));
+            updateCounter(field);
+        });
+    })();
+</script>
+{% endblock %}

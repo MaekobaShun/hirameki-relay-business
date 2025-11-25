@@ -1,50 +1,30 @@
-<!DOCTYPE html>
-<html lang="ja">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ idea.title }} - 投稿詳細</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='hub.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='post_view.css') }}">
-    <script src="{{ url_for('static', filename='header.js') }}" defer></script>
-</head>
+{% block title %}{{ idea.title }} - 投稿詳細{% endblock %}
 
-<body>
-    {% include 'header.html' %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='post_view.css') }}">
+{% endblock %}
 
-    <main class="post-main">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="flash-messages glass-card">
-            {% for message in messages %}
-            <p>{{ message }}</p>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
+{% block content %}
+<div class="post-main">
+    <article class="post-card glass-card">
+        <header class="post-header">
+            <h2 class="post-title">{{ idea.title }}</h2>
+            <div class="post-meta">
+                <span>{{ idea.category }}</span>
+                <span>{{ idea.created_at }}</span>
+            </div>
+        </header>
+        <section class="post-body">
+            <p>{{ idea.detail | replace('\n', '<br>') | safe }}</p>
+        </section>
+        <footer class="post-footer">
+            <a href="{{ url_for('mypage') }}" class="post-back-link">← マイページに戻る</a>
+        </footer>
+    </article>
+</div>
 
-        <article class="post-card glass-card">
-            <header class="post-header">
-                <h2 class="post-title">{{ idea.title }}</h2>
-                <div class="post-meta">
-                    <span>{{ idea.category }}</span>
-                    <span>{{ idea.created_at }}</span>
-                </div>
-            </header>
-            <section class="post-body">
-                <p>{{ idea.detail | replace('\n', '<br>') | safe }}</p>
-            </section>
-            <footer class="post-footer">
-                <a href="{{ url_for('mypage') }}" class="post-back-link">← マイページに戻る</a>
-            </footer>
-        </article>
-    </main>
-
-    <div class="floating-sparkle sparkle-1">✨</div>
-    <div class="floating-sparkle sparkle-2">✨</div>
-
-    {% include 'notification_panel.html' %}
-</body>
-
-</html>
+<div class="floating-sparkle sparkle-1">✨</div>
+<div class="floating-sparkle sparkle-2">✨</div>
+{% endblock %}

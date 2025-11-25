@@ -1,6 +1,6 @@
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 USE_SUPABASE = bool(
     os.environ.get('SUPABASE_DATABASE_URL')
@@ -503,11 +503,11 @@ def get_public_events():
 
 
 def get_active_events():
-    """開催中のイベントを取得"""
+    """開催中のイベントを取得（status='active'のみ）"""
     now = datetime.now()
     with get_connection() as con:
         rows = con.execute(
-            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE start_date <= ? AND end_date >= ? ORDER BY start_date DESC",
+            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE start_date <= ? AND end_date >= ? AND status = 'active' ORDER BY start_date DESC",
             (now, now)
         ).fetchall()
     return rows
@@ -696,3 +696,69 @@ def update_event_statuses() -> None:
             )
         if not using_supabase():
             con.commit()
+
+
+def get_ranking_by_period(period: str = 'all', limit: int = 5):
+    """
+    期間別ランキングを取得
+    period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
+    limit: 取得件数
+    """
+    now = datetime.now()
+    
+    # 期間に応じた開始日を計算
+    if period == 'weekly':
+        start_date = now - timedelta(days=7)
+    elif period == 'monthly':
+        start_date = now - timedelta(days=30)
+    elif period == 'yearly':
+        start_date = now - timedelta(days=365)
+    else:  # 'all' またはその他
+        start_date = None
+    
+    with get_connection() as con:
+        if start_date:
+            # 期間指定あり（文字列形式に変換して比較）
+            start_date_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
+            query = _prepare_query("""
+                SELECT 
+                    u.user_id,
+                    u.nickname,
+                    u.icon_path,
+                    COUNT(i.idea_id) as post_count
+                FROM mypage u
+                INNER JOIN ideas i ON u.user_id = i.user_id
+                WHERE i.created_at >= ?
+                GROUP BY u.user_id, u.nickname, u.icon_path
+                ORDER BY post_count DESC, u.created_at ASC
+                LIMIT ?
+            """)
+            rows = con.execute(query, (start_date_str, limit)).fetchall()
+        else:
+            # 全期間
+            query = _prepare_query("""
+                SELECT 
+                    u.user_id,
+                    u.nickname,
+                    u.icon_path,
+                    COUNT(i.idea_id) as post_count
+                FROM mypage u
+                LEFT JOIN ideas i ON u.user_id = i.user_id
+                GROUP BY u.user_id, u.nickname, u.icon_path
+                HAVING COUNT(i.idea_id) > 0
+                ORDER BY post_count DESC, u.created_at ASC
+                LIMIT ?
+            """)
+            rows = con.execute(query, (limit,)).fetchall()
+    
+    rankings = []
+    for rank, row in enumerate(rows, start=1):
+        rankings.append({
+            'rank': rank,
+            'user_id': row[0],
+            'nickname': row[1],
+            'icon_path': row[2],
+            'post_count': row[3]
+        })
+    
+    return rankings

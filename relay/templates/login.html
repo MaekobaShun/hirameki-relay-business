@@ -13,18 +13,16 @@
                     <div class="logo-icon">💡</div>
                     <h1 class="logo-text">ひらめきリレー</h1>
                 </div>
-                <div class="header-right">
-                    <a class="header-link" href="{{ url_for('signup') }}">新規登録へ</a>
-                </div>
             </div>
         </header>
 
         <main class="auth-main">
-            <div class="auth-card">
-                <h1>ログイン</h1>
+            <section class="auth-card glass-card">
+                <h2 class="auth-title">ログイン</h2>
+
                 {% if errors %}
-                    <div class="auth-error">
-                        <strong>入力内容を確認してください。</strong>
+                    <div class="status-message status-error">
+                        <strong>入力内容を確認してください:</strong>
                         <ul>
                             {% for error in errors %}
                                 <li>{{ error }}</li>
@@ -40,23 +38,41 @@
                         <input class="auth-input" type="text" id="identifier" name="identifier" value="{{ form_data.identifier }}" placeholder="@username または user@example.com" required>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group password-toggle">
                         <label for="password">パスワード</label>
-                        <input class="auth-input" type="password" id="password" name="password" placeholder="パスワード" required>
+                        <div class="password-input-wrapper">
+                            <input class="auth-input" type="password" id="password" name="password" placeholder="パスワード" required>
+                            <button type="button" data-target="password">表示</button>
+                        </div>
                     </div>
 
-                    <button type="submit" class="auth-submit">ログイン</button>
-
-                    <div class="auth-links">
-                        <a href="{{ url_for('signup') }}">まだアカウントをお持ちでない方はこちら</a>
-                        <a href="{{ url_for('index') }}">トップページに戻る</a>
+                    <div class="auth-actions">
+                        <button type="submit" class="auth-submit">ログイン</button>
+                        <a href="{{ url_for('signup') }}" class="auth-link-secondary">まだアカウントをお持ちでない方はこちら</a>
+                        <a href="{{ url_for('index') }}" class="auth-link-secondary">トップページに戻る</a>
                     </div>
                 </form>
-            </div>
+            </section>
         </main>
 
-        <div class="floating-sparkle sparkle-1">✨</div>
-        <div class="floating-sparkle sparkle-2">✨</div>
+
+        <script>
+            document.querySelectorAll('.password-toggle button').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    if (!input) {
+                        return;
+                    }
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        this.textContent = '非表示';
+                    } else {
+                        input.type = 'password';
+                        this.textContent = '表示';
+                    }
+                });
+            });
+        </script>
     </body>
 </html>
-

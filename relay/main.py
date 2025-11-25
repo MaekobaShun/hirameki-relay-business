@@ -33,6 +33,7 @@ from relay.db import (
     update_event_statuses,
     update_event,
     delete_event,
+    get_ranking_by_period,
 )
 import uuid
 from datetime import datetime
@@ -179,12 +180,19 @@ def index():
     user_id = session['user_id']
     user_name = session['nickname']
 
-    # 開催中のイベントを取得
+    # イベント状態を更新
+    update_event_statuses()
+
+    # 開催中のイベントを取得（ユーザーが参加しているもののみ）
     active_events_rows = get_active_events()
     active_events = []
     
     for event_row in active_events_rows:
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        
+        # ユーザーが参加しているイベントのみを表示
+        if not is_event_participant(event_id, user_id):
+            continue
         
         # 日時が文字列の場合はdatetimeオブジェクトに変換
         if isinstance(start_date, str):
@@ -204,44 +212,41 @@ def index():
                 except ValueError:
                     continue
 
+        # 残り日数を計算（終了日までの日数）
+        now = datetime.now()
+        remaining_days = (end_date - now).days
+        if remaining_days < 0:
+            remaining_days = 0
+
         active_events.append({
             'event_id': event_id,
             'name': name,
             'start_date': start_date,
             'end_date': end_date,
-            'status': status
+            'status': status,
+            'remaining_days': remaining_days
         })
 
-    # ランキングを取得（トップ5）
-    with get_connection() as con:
-        ranking_rows = con.execute("""
-            SELECT 
-                u.user_id,
-                u.nickname,
-                u.icon_path,
-                COUNT(i.idea_id) as post_count
-            FROM mypage u
-            LEFT JOIN ideas i ON u.user_id = i.user_id
-            GROUP BY u.user_id, u.nickname, u.icon_path
-            HAVING COUNT(i.idea_id) > 0
-            ORDER BY post_count DESC, u.created_at ASC
-            LIMIT 5
-        """).fetchall()
-
-    rankings = []
-    for rank, row in enumerate(ranking_rows, start=1):
-        rankings.append({
-            'rank': rank,
-            'user_id': row[0],
-            'nickname': row[1],
-            'icon_path': row[2],
-            'post_count': row[3]
-        })
+    # 期間パラメータを取得（デフォルトは総合）
+    period = request.args.get('period', 'all')
+    valid_periods = ['all', 'weekly', 'monthly', 'yearly']
+    if period not in valid_periods:
+        period = 'all'
+    
+    # 期間別ランキングを取得（各期間トップ5）
+    rankings_by_period = {}
+    for p in valid_periods:
+        rankings_by_period[p] = get_ranking_by_period(p, limit=5)
+    
+    # 現在選択中のランキング
+    current_rankings = rankings_by_period[period]
     
     return render_template(
         'index.html',
         active_events=active_events,
-        rankings=rankings,
+        rankings=current_rankings,
+        rankings_by_period=rankings_by_period,
+        current_period=period,
         user_name=user_name
     )
 
@@ -1142,41 +1147,32 @@ def mypage():
 @login_required
 def ranking():
     """投稿数ランキングページ"""
-    with get_connection() as con:
-        # 投稿数でユーザーをランキング（投稿数が多い順）
-        ranking_rows = con.execute("""
-            SELECT 
-                u.user_id,
-                u.nickname,
-                u.icon_path,
-                COUNT(i.idea_id) as post_count
-            FROM mypage u
-            LEFT JOIN ideas i ON u.user_id = i.user_id
-            GROUP BY u.user_id, u.nickname, u.icon_path
-            HAVING COUNT(i.idea_id) > 0
-            ORDER BY post_count DESC, u.created_at ASC
-        """).fetchall()
-
-    rankings = []
-    for rank, row in enumerate(ranking_rows, start=1):
-        rankings.append({
-            'rank': rank,
-            'user_id': row[0],
-            'nickname': row[1],
-            'icon_path': row[2],
-            'post_count': row[3]
-        })
-
+    # 期間パラメータを取得（デフォルトは総合）
+    period = request.args.get('period', 'all')
+    valid_periods = ['all', 'weekly', 'monthly', 'yearly']
+    if period not in valid_periods:
+        period = 'all'
+    
+    # 期間別ランキングを取得（制限なし、全ユーザー表示）
+    rankings_by_period = {}
+    for p in valid_periods:
+        rankings_by_period[p] = get_ranking_by_period(p, limit=1000)  # 実質的に全件取得
+    
+    # 現在選択中のランキング
+    current_rankings = rankings_by_period[period]
+    
     current_user_id = session.get('user_id')
     current_user_rank = None
-    for ranking_item in rankings:
+    for ranking_item in current_rankings:
         if ranking_item['user_id'] == current_user_id:
             current_user_rank = ranking_item['rank']
             break
 
     return render_template(
         'ranking.html',
-        rankings=rankings,
+        rankings=current_rankings,
+        rankings_by_period=rankings_by_period,
+        current_period=period,
         current_user_id=current_user_id,
         current_user_rank=current_user_rank
     )
