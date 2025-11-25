@@ -762,3 +762,69 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
         })
     
     return rankings
+
+
+def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
+    """
+    期間別継承数ランキングを取得
+    period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
+    limit: 取得件数
+    """
+    now = datetime.now()
+    
+    # 期間に応じた開始日を計算
+    if period == 'weekly':
+        start_date = now - timedelta(days=7)
+    elif period == 'monthly':
+        start_date = now - timedelta(days=30)
+    elif period == 'yearly':
+        start_date = now - timedelta(days=365)
+    else:  # 'all' またはその他
+        start_date = None
+    
+    with get_connection() as con:
+        if start_date:
+            # 期間指定あり
+            start_date_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
+            query = _prepare_query("""
+                SELECT 
+                    u.user_id,
+                    u.nickname,
+                    u.icon_path,
+                    COUNT(ii.inheritance_id) as inheritance_count
+                FROM mypage u
+                INNER JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                WHERE ii.created_at >= ?
+                GROUP BY u.user_id, u.nickname, u.icon_path
+                ORDER BY inheritance_count DESC, u.created_at ASC
+                LIMIT ?
+            """)
+            rows = con.execute(query, (start_date_str, limit)).fetchall()
+        else:
+            # 全期間
+            query = _prepare_query("""
+                SELECT 
+                    u.user_id,
+                    u.nickname,
+                    u.icon_path,
+                    COUNT(ii.inheritance_id) as inheritance_count
+                FROM mypage u
+                LEFT JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                GROUP BY u.user_id, u.nickname, u.icon_path
+                HAVING COUNT(ii.inheritance_id) > 0
+                ORDER BY inheritance_count DESC, u.created_at ASC
+                LIMIT ?
+            """)
+            rows = con.execute(query, (limit,)).fetchall()
+    
+    rankings = []
+    for rank, row in enumerate(rows, start=1):
+        rankings.append({
+            'rank': rank,
+            'user_id': row[0],
+            'nickname': row[1],
+            'icon_path': row[2],
+            'inheritance_count': row[3]
+        })
+    
+    return rankings

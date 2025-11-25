@@ -39,7 +39,7 @@
 
 .hero-metrics {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
     margin-top: 1.5rem;
 }
@@ -48,21 +48,22 @@
     border-radius: 1.25rem;
     border: 1px solid rgba(226, 232, 240, 0.9);
     background: rgba(249, 250, 251, 0.9);
-    padding: 1.25rem;
+    padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
 }
 
 .metric-label {
-    font-size: 0.8rem;
-    letter-spacing: 0.2em;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
     color: #94a3b8;
     text-transform: uppercase;
+    font-weight: 600;
 }
 
 .metric-value {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: #1e1b4b;
 }
@@ -307,6 +308,18 @@
     .ranking-container {
         border-radius: 1.5rem;
         padding: 1.75rem;
+    }
+
+    .hero-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-card {
+        padding: 0.875rem 1rem;
+    }
+
+    .metric-value {
+        font-size: 1.25rem;
     }
 
     .ranking-item {

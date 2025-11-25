@@ -10,10 +10,10 @@
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 1);
     border-radius: 2rem;
     border: 1px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 25px 60px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
     position: relative;
     overflow: hidden;
 }
@@ -256,39 +256,6 @@
     min-width: 140px;
 }
 
-.floating-sparkle {
-    position: fixed;
-    font-size: 2rem;
-    opacity: 0.4;
-    animation: float 3s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.sparkle-1 {
-    top: 5rem;
-    left: calc(var(--sidebar-width) + 2rem);
-    color: #c084fc;
-}
-
-.sparkle-2 {
-    bottom: 5rem;
-    right: 2.5rem;
-    color: #f9a8d4;
-    animation-delay: 1s;
-}
-
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-        opacity: 0.4;
-    }
-    50% {
-        transform: translateY(-12px);
-        opacity: 0.8;
-    }
-}
-
 @media (max-width: 900px) {
     .form-card {
         padding: 2.5rem;
@@ -316,10 +283,5 @@
     .submit-button {
         width: 100%;
         text-align: center;
-    }
-
-    .sparkle-1,
-    .sparkle-2 {
-        display: none;
     }
 }

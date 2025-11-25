@@ -183,21 +183,23 @@
             {% else %}
             <div class="ideas-grid">
                 {% for idea in ideas %}
-                <div class="idea-card" role="button" tabindex="0"
+                <div class="idea-card posted-card" role="button" tabindex="0"
                     data-detail-url="{{ url_for('post_view', idea_id=idea.idea_id) }}">
-                    <div class="idea-header">
-                        <h4>{{ idea.title }}</h4>
-                        <span class="idea-category">{{ idea.category }}</span>
+                    <div class="card-body">
+                        <div class="card-header">
+                            <span class="card-category">{{ idea.category }}</span>
+                        </div>
+                        <h4 class="card-title">{{ idea.title }}</h4>
+                        <p class="card-detail">{{ idea.detail }}</p>
                     </div>
-                    <p class="idea-detail">{{ idea.detail }}</p>
-                    <div class="idea-footer">
-                        <span class="idea-date">{{ idea.created_at }}</span>
-                        <div class="idea-actions">
+                    <div class="card-footer">
+                        <span class="card-date">{{ idea.created_at }}</span>
+                        <div class="card-actions">
                             <a href="{{ url_for('inheritance_form', idea_id=idea.idea_id) }}"
-                                class="inheritance-button" onclick="event.stopPropagation();">継承</a>
+                                class="btn-sm btn-primary" onclick="event.stopPropagation();">継承</a>
                             <form method="post" action="{{ url_for('delete_idea', idea_id=idea.idea_id) }}"
                                 class="idea-delete-form">
-                                <button type="submit" class="idea-delete-button">削除</button>
+                                <button type="submit" class="btn-sm btn-danger idea-delete-button">削除</button>
                             </form>
                         </div>
                     </div>
@@ -216,15 +218,19 @@
                 {% for result in gacha_results %}
                 <div class="idea-card gacha-card" role="button" tabindex="0"
                     data-detail-url="{{ url_for('post_view', idea_id=result.idea_id) }}">
-                    <div class="idea-header">
-                        <h4>{{ result.idea_title }}</h4>
-                        <span class="idea-category gacha-badge">{{ result.category }}</span>
+                    <div class="card-body">
+                        <div class="card-header">
+                            <span class="card-category">{{ result.category }}</span>
+                        </div>
+                        <h4 class="card-title">{{ result.idea_title }}</h4>
+                        <p class="card-detail">{{ result.detail }}</p>
                     </div>
-                    <p class="idea-detail">{{ result.detail }}</p>
-                    <div class="idea-footer">
-                        <span class="idea-date">{{ result.created_at }}</span>
-                        <a href="{{ url_for('inheritance_form', idea_id=result.idea_id) }}"
-                            class="inheritance-button" onclick="event.stopPropagation();">継承</a>
+                    <div class="card-footer">
+                        <span class="card-date">{{ result.created_at }}</span>
+                        <div class="card-actions">
+                            <a href="{{ url_for('inheritance_form', idea_id=result.idea_id) }}"
+                                class="btn-sm btn-primary" onclick="event.stopPropagation();">継承</a>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -241,22 +247,28 @@
                 {% for item in inheritance_items %}
                 <div class="idea-card inheritance-card" role="button" tabindex="0"
                     data-detail-url="{{ url_for('inheritance_view', inheritance_id=item.inheritance_id) }}">
-                    <div class="idea-header">
-                        <h4>{{ item.parent_title }}</h4>
-                        <span class="idea-category">{{ item.parent_category }}</span>
+                    <div class="card-body">
+                        <div class="card-header">
+                            <span class="card-category">{{ item.parent_category }}</span>
+                        </div>
+                        <h4 class="card-title">{{ item.parent_title }}</h4>
+                        
+                        {% if item.add_point %}
+                        <div class="inheritance-info">
+                            <span class="inheritance-label">追加したポイント</span>
+                            <span class="inheritance-parent-title">{{ item.add_point }}</span>
+                        </div>
+                        {% else %}
+                        <p class="card-detail">{{ item.parent_detail }}</p>
+                        {% endif %}
                     </div>
-                    {% if item.add_point %}
-                    <div class="inheritance-add-info">
-                        <span class="inheritance-add-badge">{{ item.add_point }}</span>
-                    </div>
-                    {% endif %}
-                    <div class="idea-footer">
-                        <span class="idea-date">{{ item.created_at }}</span>
-                        <div class="inheritance-status-badge">
+                    <div class="card-footer">
+                        <span class="card-date">{{ item.created_at }}</span>
+                        <div class="status-badge-wrapper">
                             {% if item.child_idea_id %}
-                            <span class="status-posted">公開済み</span>
+                            <span class="status-badge status-posted">公開済み</span>
                             {% else %}
-                            <span class="status-saved">保存済み</span>
+                            <span class="status-badge status-saved">保存済み</span>
                             {% endif %}
                         </div>
                     </div>

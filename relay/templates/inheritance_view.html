@@ -5,26 +5,27 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
 <style>
-    /* View Specific Styles - Consider moving to form.css or a new file if grows */
+    /* View Specific Styles - Unified with MyPage Design */
     .inheritance-view-details {
         margin-top: 2rem;
         padding-top: 2rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.3);
+        border-top: 1px solid rgba(226, 232, 240, 0.9);
     }
 
     .view-label {
         font-size: 0.9rem;
-        font-weight: 700;
-        color: #4b5563;
+        font-weight: 600;
+        color: #64748b;
         margin-bottom: 0.5rem;
         display: block;
     }
 
     .view-content {
-        background: rgba(255, 255, 255, 0.6);
-        padding: 1rem;
-        border-radius: 0.75rem;
+        background: rgba(248, 250, 252, 0.95);
+        padding: 1.25rem 1.5rem;
+        border-radius: 1rem;
         margin-bottom: 1.5rem;
+        border: 1px solid rgba(226, 232, 240, 0.9);
         color: #1f2937;
         line-height: 1.6;
     }
@@ -36,21 +37,48 @@
     }
 
     .edit-button {
-        background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
         color: white;
         border: none;
         padding: 0.75rem 2rem;
         border-radius: 999px;
-        font-weight: 700;
+        font-weight: 600;
+        font-size: 0.95rem;
         cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
         text-decoration: none;
         display: inline-block;
     }
 
     .edit-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 14px 28px rgba(99, 102, 241, 0.25);
+        color: white;
+        text-decoration: none;
+    }
+
+    .inheritance-status-badge {
+        display: flex;
+        align-items: center;
+    }
+
+    .status-posted,
+    .status-saved {
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .status-posted {
+        background: rgba(34, 197, 94, 0.15);
+        color: #16a34a;
+    }
+
+    .status-saved {
+        background: rgba(100, 116, 139, 0.15);
+        color: #64748b;
     }
 </style>
 {% endblock %}
@@ -110,7 +138,4 @@
         </div>
     </section>
 </div>
-
-<div class="floating-sparkle sparkle-1">✨</div>
-<div class="floating-sparkle sparkle-2">✨</div>
 {% endblock %}

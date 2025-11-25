@@ -239,6 +239,11 @@
     height: 24px;
 }
 
+/* ランキングアイコンを金色に */
+.ranking-section .section-title-icon {
+    filter: invert(77%) sepia(95%) saturate(1234%) hue-rotate(358deg) brightness(105%) contrast(101%);
+}
+
 /* Ranking Tabs */
 .ranking-tabs {
     display: flex;

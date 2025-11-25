@@ -10,39 +10,26 @@
 {% endblock %}
 
 {% block content %}
-{% set total_ranked = rankings|length if rankings else 0 %}
-{% set top_ranking = rankings[0] if rankings else None %}
 <div class="ranking-main">
     <section class="ranking-hero">
         <div class="hero-copy">
-            <h2>投稿数ランキング</h2>
-            <div class="hero-metrics">
+            <h2>あなたのランキング</h2>
+            <div class="hero-metrics" id="user-rankings">
                 <div class="metric-card">
-                    <span class="metric-label">エントリー数</span>
-                    <span class="metric-value">{{ total_ranked }}</span>
-                </div>
-                <div class="metric-card">
-                    <span class="metric-label">トップ投稿</span>
-                    <span class="metric-value">
-                        {% if top_ranking %}
-                            {{ top_ranking.post_count }}
+                    <span class="metric-label">投稿数順位</span>
+                    <span class="metric-value" id="post-rank-value">
+                        {% if current_user_post_rank %}
+                            {{ current_user_post_rank }}位
                         {% else %}
                             —
                         {% endif %}
                     </span>
-                    <span class="metric-footnote">
-                        {% if top_ranking %}
-                            {{ top_ranking.nickname }}
-                        {% else %}
-                            集計中
-                        {% endif %}
-                    </span>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">あなたの順位</span>
-                    <span class="metric-value">
-                        {% if current_user_rank %}
-                            {{ current_user_rank }}位
+                    <span class="metric-label">継承数順位</span>
+                    <span class="metric-value" id="inheritance-rank-value">
+                        {% if current_user_inheritance_rank %}
+                            {{ current_user_inheritance_rank }}位
                         {% else %}
                             —
                         {% endif %}
@@ -127,6 +114,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const periodTabs = document.querySelectorAll('.period-tab');
     const periodContents = document.querySelectorAll('.period-ranking-content');
     
+    // 期間別の順位データ
+    const userRanksByPeriod = {
+        {% set periods = [('all', '総合'), ('yearly', '年間'), ('monthly', '月間'), ('weekly', '週間')] %}
+        {% for period_key, period_name in periods %}
+        '{{ period_key }}': {
+            post_rank: {% if user_ranks_by_period[period_key]['post_rank'] %}{{ user_ranks_by_period[period_key]['post_rank'] }}{% else %}null{% endif %},
+            inheritance_rank: {% if user_ranks_by_period[period_key]['inheritance_rank'] %}{{ user_ranks_by_period[period_key]['inheritance_rank'] }}{% else %}null{% endif %}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
+    
+    function updateUserRankings(period) {
+        const ranks = userRanksByPeriod[period];
+        const postRankElement = document.getElementById('post-rank-value');
+        const inheritanceRankElement = document.getElementById('inheritance-rank-value');
+        
+        if (postRankElement) {
+            postRankElement.textContent = ranks.post_rank ? ranks.post_rank + '位' : '—';
+        }
+        if (inheritanceRankElement) {
+            inheritanceRankElement.textContent = ranks.inheritance_rank ? ranks.inheritance_rank + '位' : '—';
+        }
+    }
+    
     periodTabs.forEach(tab => {
         tab.addEventListener('click', function() {
             const period = this.getAttribute('data-period');
@@ -144,17 +155,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            // 統計セクションを更新
+            updateUserRankings(period);
+            
             // URLを更新（ページリロードなし）
             const url = new URL(window.location);
             url.searchParams.set('period', period);
             window.history.pushState({}, '', url);
-            
-            // 現在のユーザーの順位を再計算
-            const activeContent = document.querySelector(`.period-ranking-content[data-period="${period}"]`);
-            if (activeContent) {
-                const currentUserItems = activeContent.querySelectorAll('.ranking-item.current-user');
-                // 順位の再表示は必要に応じて実装
-            }
         });
     });
 });

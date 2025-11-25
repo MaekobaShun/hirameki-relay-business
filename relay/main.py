@@ -34,6 +34,7 @@ from relay.db import (
     update_event,
     delete_event,
     get_ranking_by_period,
+    get_inheritance_ranking_by_period,
 )
 import uuid
 from datetime import datetime
@@ -1155,26 +1156,54 @@ def ranking():
     
     # 期間別ランキングを取得（制限なし、全ユーザー表示）
     rankings_by_period = {}
+    inheritance_rankings_by_period = {}
     for p in valid_periods:
         rankings_by_period[p] = get_ranking_by_period(p, limit=1000)  # 実質的に全件取得
+        inheritance_rankings_by_period[p] = get_inheritance_ranking_by_period(p, limit=1000)
     
     # 現在選択中のランキング
     current_rankings = rankings_by_period[period]
+    current_inheritance_rankings = inheritance_rankings_by_period[period]
     
     current_user_id = session.get('user_id')
-    current_user_rank = None
-    for ranking_item in current_rankings:
-        if ranking_item['user_id'] == current_user_id:
-            current_user_rank = ranking_item['rank']
-            break
+    
+    # 各期間の順位を計算
+    user_ranks_by_period = {}
+    for p in valid_periods:
+        post_rank = None
+        inheritance_rank = None
+        
+        # 投稿数の順位を取得
+        for ranking_item in rankings_by_period[p]:
+            if ranking_item['user_id'] == current_user_id:
+                post_rank = ranking_item['rank']
+                break
+        
+        # 継承数の順位を取得
+        for ranking_item in inheritance_rankings_by_period[p]:
+            if ranking_item['user_id'] == current_user_id:
+                inheritance_rank = ranking_item['rank']
+                break
+        
+        user_ranks_by_period[p] = {
+            'post_rank': post_rank,
+            'inheritance_rank': inheritance_rank
+        }
+    
+    # 現在選択中の順位
+    current_user_post_rank = user_ranks_by_period[period]['post_rank']
+    current_user_inheritance_rank = user_ranks_by_period[period]['inheritance_rank']
 
     return render_template(
         'ranking.html',
         rankings=current_rankings,
         rankings_by_period=rankings_by_period,
+        inheritance_rankings_by_period=inheritance_rankings_by_period,
         current_period=period,
         current_user_id=current_user_id,
-        current_user_rank=current_user_rank
+        current_user_post_rank=current_user_post_rank,
+        current_user_inheritance_rank=current_user_inheritance_rank,
+        user_ranks_by_period=user_ranks_by_period
     )
 
 
