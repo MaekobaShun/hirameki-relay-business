@@ -67,7 +67,8 @@
     color: #a855f7;
 }
 
-.ticket-display {
+/* ガチャカード内のチケット表示（ヘッダーとは独立） */
+.gacha-ticket-display {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -81,7 +82,7 @@
     width: fit-content;
 }
 
-.ticket-label {
+.gacha-ticket-display .ticket-label {
     font-size: 0.9rem;
     font-weight: 600;
     color: #0f172a;
@@ -89,14 +90,14 @@
     letter-spacing: 0.08em;
 }
 
-.ticket-count {
+.gacha-ticket-display .ticket-count {
     font-size: 1.5rem;
     font-weight: 800;
     color: #2563eb;
     min-width: 2rem;
 }
 
-.ticket-unit {
+.gacha-ticket-display .ticket-unit {
     font-size: 0.9rem;
     color: #94a3b8;
 }

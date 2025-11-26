@@ -6,6 +6,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
 {% endblock %}
 
+{% block header_intro %}
+<p class="header-eyebrow">INHERITANCE</p>
+<h1 class="header-title">アイデアを継承</h1>
+{% endblock %}
+
 {% block content %}
 <div class="form-main">
     <section class="form-card glass-card">
@@ -49,7 +54,7 @@
             <div class="form-group">
                 <label for="add_point">追加したポイント <span class="required-mark">*</span></label>
                 <input type="text" id="add_point" name="add_point" class="form-input"
-                    placeholder="このアイデアに追加したポイントを簡潔に記入してください" required maxlength="64">
+                    placeholder="このアイデアに追加したポイントを簡潔に記入してください" required maxlength="64" value="{{ idea.saved_add_point }}">
                 <div class="character-counter">
                     <span id="add-point-count">0/64</span>
                 </div>
@@ -59,7 +64,7 @@
             <div class="form-group">
                 <label for="add_detail">詳細（任意）</label>
                 <textarea name="add_detail" id="add_detail" class="form-textarea"
-                    placeholder="追加したポイントの詳細や、改善内容を記入してください（任意）" rows="6"></textarea>
+                    placeholder="追加したポイントの詳細や、改善内容を記入してください（任意）" rows="6">{{ idea.saved_add_detail }}</textarea>
                 <div class="character-counter">
                     <span id="add-detail-count">0/500</span>
                 </div>
@@ -149,6 +154,7 @@
                 return;
             }
             field.element.addEventListener('input', () => updateCounter(field));
+            // 初期値がある場合もカウンターを更新
             updateCounter(field);
         });
 

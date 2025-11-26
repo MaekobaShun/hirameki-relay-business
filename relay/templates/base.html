@@ -12,10 +12,10 @@
 <body>
     <!-- Sidebar -->
     <aside class="sidebar">
-        <div class="sidebar-header">
+        <a href="{{ url_for('index') }}" class="sidebar-header">
             <div class="logo-icon">💡</div>
             <h2 class="logo-text">ひらめきリレー</h2>
-        </div>
+        </a>
         <nav class="sidebar-nav">
             <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
                 <img src="{{ url_for('static', filename='images/home-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ホーム">
@@ -59,11 +59,16 @@
                 {% endblock %}
             </div>
             <div class="header-actions">
+                <!-- チケット表示 -->
+                <div class="header-ticket-display">
+                    <span class="header-ticket-icon">🎫</span>
+                    <span class="header-ticket-count">{{ ticket_count }}</span>
+                </div>
                 <!-- 通知機能 -->
                 <button class="notification-btn" id="notification-bell">
                     <img src="{{ url_for('static', filename='images/bell-svgrepo-com.svg') }}" class="notification-icon-svg" alt="通知">
-                    {% if revival_notifications and revival_notifications|length > 0 %}
-                    <span class="notification-badge">{{ revival_notifications|length }}</span>
+                    {% if unread_notification_count and unread_notification_count > 0 %}
+                    <span class="notification-badge" id="notification-badge">{{ unread_notification_count }}</span>
                     {% endif %}
                 </button>
                 <a href="{{ url_for('mypage') }}" class="user-profile">

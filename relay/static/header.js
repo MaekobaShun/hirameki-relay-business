@@ -44,19 +44,51 @@
         const notificationBell = document.getElementById('notification-bell');
         const notificationPanel = document.getElementById('notification-panel');
         const notificationClose = document.getElementById('notification-close');
+        const notificationBadge = document.getElementById('notification-badge');
 
         if (notificationBell && notificationPanel) {
-            const openNotificationPanel = (e) => {
+            const openNotificationPanel = async (e) => {
                 e.preventDefault();
                 notificationPanel.classList.add('open');
                 notificationPanel.setAttribute('aria-hidden', 'false');
                 notificationBell.setAttribute('aria-expanded', 'true');
+                
+                // 通知パネルを開いたときに既読APIを呼び出す
+                try {
+                    const response = await fetch('/notifications/mark-read', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        // バッジを更新
+                        updateNotificationBadge(data.unread_count);
+                    }
+                } catch (error) {
+                    console.error('Failed to mark notifications as read:', error);
+                }
             };
 
             const closeNotificationPanel = () => {
                 notificationPanel.classList.remove('open');
                 notificationPanel.setAttribute('aria-hidden', 'true');
                 notificationBell.setAttribute('aria-expanded', 'false');
+            };
+
+            // 通知バッジを更新する関数
+            const updateNotificationBadge = (unreadCount) => {
+                if (notificationBadge) {
+                    if (unreadCount > 0) {
+                        notificationBadge.textContent = unreadCount;
+                        notificationBadge.style.display = 'block';
+                    } else {
+                        notificationBadge.style.display = 'none';
+                    }
+                }
             };
 
             notificationBell.addEventListener('click', openNotificationPanel);

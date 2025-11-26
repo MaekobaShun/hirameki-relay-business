@@ -3,6 +3,8 @@
 {% block title %}ランキング - ひらめきリレー{% endblock %}
 
 {% block header_intro %}
+<p class="header-eyebrow">RANKING</p>
+<h1 class="header-title">ランキング</h1>
 {% endblock %}
 
 {% block extra_css %}
@@ -41,12 +43,11 @@
 
     <section class="ranking-container">
         <div class="ranking-tabs">
-            <button class="tab-button active" data-tab="posts">
+            <button class="tab-button active" data-tab="posts" data-ranking-type="posts">
                 <span class="tab-label">投稿数</span>
             </button>
-            <button class="tab-button disabled" data-tab="inheritance" disabled>
+            <button class="tab-button" data-tab="inheritance" data-ranking-type="inheritance">
                 <span class="tab-label">継承数</span>
-                <span class="tab-badge">準備中</span>
             </button>
         </div>
 
@@ -58,51 +59,101 @@
             <button class="period-tab {% if current_period == 'weekly' %}active{% endif %}" data-period="weekly">週間</button>
         </div>
 
-            <!-- Ranking Content for each period -->
+            <!-- Ranking Content for each period and type -->
         <div class="ranking-content">
-            {% for period_key, period_name in [('all', '総合'), ('yearly', '年間'), ('monthly', '月間'), ('weekly', '週間')] %}
-            <div class="period-ranking-content" data-period="{{ period_key }}" {% if current_period != period_key %}style="display: none;"{% else %}style="display: block;"{% endif %}>
-                {% set period_rankings = rankings_by_period[period_key] %}
-                {% if period_rankings %}
-                <div class="ranking-list">
-                    {% for ranking in period_rankings %}
-                    <div class="ranking-item {% if ranking.user_id == current_user_id %}current-user{% endif %}">
-                        <div class="rank-number {% if ranking.rank == 1 %}rank-gold{% elif ranking.rank == 2 %}rank-silver{% elif ranking.rank == 3 %}rank-bronze{% endif %}">
-                            <span class="rank-text">{{ ranking.rank }}</span>
-                        </div>
-                        <div class="user-info">
-                            <div class="user-avatar">
-                                {% if ranking.icon_path %}
-                                    {% if ranking.icon_path.startswith('uploads/') %}
-                                        <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}" class="avatar-image">
-                                    {% elif ranking.icon_path.startswith('http') %}
-                                        <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}" class="avatar-image">
+            <!-- Posts Ranking -->
+            <div class="ranking-type-content" data-ranking-type="posts">
+                {% for period_key, period_name in [('all', '総合'), ('yearly', '年間'), ('monthly', '月間'), ('weekly', '週間')] %}
+                <div class="period-ranking-content" data-period="{{ period_key }}" data-ranking-type="posts" {% if current_period != period_key %}style="display: none;"{% else %}style="display: block;"{% endif %}>
+                    {% set period_rankings = rankings_by_period[period_key] %}
+                    {% if period_rankings %}
+                    <div class="ranking-list">
+                        {% for ranking in period_rankings %}
+                        <div class="ranking-item {% if ranking.user_id == current_user_id %}current-user{% endif %}">
+                            <div class="rank-number {% if ranking.rank == 1 %}rank-gold{% elif ranking.rank == 2 %}rank-silver{% elif ranking.rank == 3 %}rank-bronze{% endif %}">
+                                <span class="rank-text">{{ ranking.rank }}</span>
+                            </div>
+                            <div class="ranking-user-info">
+                                <div class="ranking-user-avatar">
+                                    {% if ranking.icon_path %}
+                                        {% if ranking.icon_path.startswith('uploads/') %}
+                                            <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% elif ranking.icon_path.startswith('http') %}
+                                            <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename=ranking.icon_path) }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% endif %}
                                     {% else %}
-                                        <img src="{{ url_for('static', filename=ranking.icon_path) }}" alt="{{ ranking.nickname }}" class="avatar-image">
+                                        <span class="ranking-avatar-text">{{ ranking.nickname[0] if ranking.nickname else 'U' }}</span>
                                     {% endif %}
-                                {% else %}
-                                    <span class="avatar-text">{{ ranking.nickname[0] if ranking.nickname else 'U' }}</span>
-                                {% endif %}
+                                </div>
+                                <div class="ranking-user-details">
+                                    <div class="ranking-user-name">{{ ranking.nickname }}</div>
+                                    <div class="ranking-user-id">@{{ ranking.user_id }}</div>
+                                </div>
                             </div>
-                            <div class="user-details">
-                                <div class="user-name">{{ ranking.nickname }}</div>
-                                <div class="user-id">@{{ ranking.user_id }}</div>
+                            <div class="rank-stats">
+                                <div class="stat-value">{{ ranking.post_count }}</div>
+                                <div class="stat-label">投稿</div>
                             </div>
                         </div>
-                        <div class="rank-stats">
-                            <div class="stat-value">{{ ranking.post_count }}</div>
-                            <div class="stat-label">投稿</div>
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    {% else %}
+                    <div class="empty-message">
+                        <p>まだランキングデータがありません。</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div class="empty-message">
-                    <p>まだランキングデータがありません。</p>
-                </div>
-                {% endif %}
+                {% endfor %}
             </div>
-            {% endfor %}
+
+            <!-- Inheritance Ranking -->
+            <div class="ranking-type-content" data-ranking-type="inheritance" style="display: none;">
+                {% for period_key, period_name in [('all', '総合'), ('yearly', '年間'), ('monthly', '月間'), ('weekly', '週間')] %}
+                <div class="period-ranking-content" data-period="{{ period_key }}" data-ranking-type="inheritance" {% if current_period != period_key %}style="display: none;"{% else %}style="display: block;"{% endif %}>
+                    {% set period_rankings = inheritance_rankings_by_period[period_key] %}
+                    {% if period_rankings %}
+                    <div class="ranking-list">
+                        {% for ranking in period_rankings %}
+                        <div class="ranking-item {% if ranking.user_id == current_user_id %}current-user{% endif %}">
+                            <div class="rank-number {% if ranking.rank == 1 %}rank-gold{% elif ranking.rank == 2 %}rank-silver{% elif ranking.rank == 3 %}rank-bronze{% endif %}">
+                                <span class="rank-text">{{ ranking.rank }}</span>
+                            </div>
+                            <div class="ranking-user-info">
+                                <div class="ranking-user-avatar">
+                                    {% if ranking.icon_path %}
+                                        {% if ranking.icon_path.startswith('uploads/') %}
+                                            <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% elif ranking.icon_path.startswith('http') %}
+                                            <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename=ranking.icon_path) }}" alt="{{ ranking.nickname }}" class="ranking-avatar-image">
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="ranking-avatar-text">{{ ranking.nickname[0] if ranking.nickname else 'U' }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="ranking-user-details">
+                                    <div class="ranking-user-name">{{ ranking.nickname }}</div>
+                                    <div class="ranking-user-id">@{{ ranking.user_id }}</div>
+                                </div>
+                            </div>
+                            <div class="rank-stats">
+                                <div class="stat-value">{{ ranking.inheritance_count }}</div>
+                                <div class="stat-label">継承</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-message">
+                        <p>まだランキングデータがありません。</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </section>
 </div>
@@ -111,8 +162,12 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const rankingTypeTabs = document.querySelectorAll('.tab-button[data-ranking-type]');
     const periodTabs = document.querySelectorAll('.period-tab');
-    const periodContents = document.querySelectorAll('.period-ranking-content');
+    const rankingTypeContents = document.querySelectorAll('.ranking-type-content');
+    
+    // 現在のランキングタイプ（投稿数 or 継承数）
+    let currentRankingType = 'posts';
     
     // 期間別の順位データ
     const userRanksByPeriod = {
@@ -124,6 +179,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }{% if not loop.last %},{% endif %}
         {% endfor %}
     };
+    
+    // 現在の期間（デフォルトは総合）
+    let currentPeriod = '{{ current_period }}';
     
     function updateUserRankings(period) {
         const ranks = userRanksByPeriod[period];
@@ -138,6 +196,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function showRankingContent(rankingType, period) {
+        // ランキングタイプ別のコンテンツを表示/非表示
+        rankingTypeContents.forEach(content => {
+            if (content.getAttribute('data-ranking-type') === rankingType) {
+                content.style.display = 'block';
+            } else {
+                content.style.display = 'none';
+            }
+        });
+        
+        // 期間別のコンテンツを表示/非表示
+        const periodContents = document.querySelectorAll(
+            `.period-ranking-content[data-ranking-type="${rankingType}"][data-period="${period}"]`
+        );
+        document.querySelectorAll('.period-ranking-content').forEach(content => {
+            if (content.getAttribute('data-ranking-type') === rankingType) {
+                if (content.getAttribute('data-period') === period) {
+                    content.style.display = 'block';
+                } else {
+                    content.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    // ランキングタイプタブ（投稿数/継承数）のクリックイベント
+    rankingTypeTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const rankingType = this.getAttribute('data-ranking-type');
+            
+            // タブのアクティブ状態を更新
+            rankingTypeTabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 現在のランキングタイプを更新
+            currentRankingType = rankingType;
+            
+            // コンテンツを表示
+            showRankingContent(currentRankingType, currentPeriod);
+        });
+    });
+    
+    // 期間タブのクリックイベント
     periodTabs.forEach(tab => {
         tab.addEventListener('click', function() {
             const period = this.getAttribute('data-period');
@@ -146,14 +247,11 @@ document.addEventListener('DOMContentLoaded', function() {
             periodTabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
             
-            // コンテンツの表示/非表示を切り替え
-            periodContents.forEach(content => {
-                if (content.getAttribute('data-period') === period) {
-                    content.style.display = 'block';
-                } else {
-                    content.style.display = 'none';
-                }
-            });
+            // 現在の期間を更新
+            currentPeriod = period;
+            
+            // コンテンツを表示
+            showRankingContent(currentRankingType, currentPeriod);
             
             // 統計セクションを更新
             updateUserRankings(period);
@@ -164,6 +262,9 @@ document.addEventListener('DOMContentLoaded', function() {
             window.history.pushState({}, '', url);
         });
     });
+    
+    // 初期表示
+    updateUserRankings(currentPeriod);
 });
 </script>
 {% endblock %}

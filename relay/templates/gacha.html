@@ -3,6 +3,8 @@
 {% block title %}ひらめきガチャ - ひらめきリレー{% endblock %}
 
 {% block header_intro %}
+<p class="header-eyebrow">GACHA</p>
+<h1 class="header-title">ひらめきガチャ</h1>
 {% endblock %}
 
 {% block extra_css %}
@@ -23,10 +25,10 @@
         }
     }
     
-    // ページロード時にチケット数をセッションから取得（バックアップ用）
+    // ページロード時にチケット数をサーバーから取得した値を使用
     window.addEventListener('load', function() {
         // チケット数はサーバーから渡された値を使用
-        const currentTickets = {{ tickets }};
+        const currentTickets = {{ ticket_count }};
         updateTicketCount(currentTickets);
     });
 </script>
@@ -40,9 +42,9 @@
         <p class="gacha-description">
             <strong>次のアイデアは、ここからはじまる。</strong>
         </p>
-        <div class="ticket-display">
+        <div class="gacha-ticket-display">
             <span class="ticket-label">🎫 ガチャチケット</span>
-            <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
+            <span class="ticket-count" id="ticket-count">{{ ticket_count }}</span>
             <span class="ticket-unit">枚</span>
         </div>
         
@@ -84,7 +86,7 @@
                     {% endfor %}
                 </div>
             </div>
-            <button type="submit" class="spin-button" id="spin-button" {% if tickets < 1 %}disabled{% endif %}>
+            <button type="submit" class="spin-button" id="spin-button" {% if ticket_count < 1 %}disabled{% endif %}>
                 ガチャを回す
             </button>
         </form>

@@ -7,7 +7,7 @@
     padding: 0 0 3rem;
     display: flex;
     flex-direction: column;
-    gap: 1.75rem;
+    gap: 2rem;
 }
 
 .glass-card {
@@ -38,7 +38,7 @@
 .page-footer {
     display: flex;
     justify-content: flex-end;
-    margin-top: 2.5rem;
+    margin-top: 0;
 }
 
 #logout-form {
@@ -64,7 +64,7 @@
 
 /* プロフィールセクション */
 .profile-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 0;
 }
 
 .profile-edit-trigger {
@@ -330,7 +330,7 @@
 
 /* コンテンツセクション */
 .content-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: 0;
     padding: 2.5rem 3rem;
 }
 

@@ -3,40 +3,144 @@
 {% block title %}イベント編集 - {{ event.name }} - ひらめきリレー{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='event_detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
+<style>
+    /* 編集ページ固有のスタイル調整 */
+    .edit-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 2.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .edit-card h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #f3f4f6;
+        padding-bottom: 1rem;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        user-select: none;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        border-radius: 0.25rem;
+        border: 1px solid #d1d5db;
+    }
+
+    .form-hint {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+        margin-left: 1.8rem; /* チェックボックスの横に合わせる */
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .btn {
+        padding: 0.75rem 2rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn:hover {
+        opacity: 0.95;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+</style>
+{% endblock %}
+
+{% block header_intro %}
+<p class="header-eyebrow">EVENT ADMIN</p>
+<h1 class="header-title">イベント設定</h1>
 {% endblock %}
 
 {% block content %}
-<div class="event-edit-container">
-    <a href="{{ url_for('event_detail', event_id=event.event_id) }}" class="back-link">← イベント詳細に戻る</a>
-    
-    <h1 style="text-align: center; margin-bottom: 2rem;">✏️ イベント編集</h1>
+<div class="event-dashboard-wrapper">
+    <div class="edit-card">
+        <div class="header-breadcrumbs" style="margin-bottom: 2rem;">
+            <a href="{{ url_for('event_detail', event_id=event.event_id) }}" class="back-link">
+                <span class="back-arrow">←</span> {{ event.name }}に戻る
+            </a>
+        </div>
 
-    <div class="event-section">
-        <h2>イベント情報を編集</h2>
+        <h2>基本情報編集</h2>
+
         <form method="POST" class="event-form">
             <div class="form-group">
                 <label for="event_name">イベント名</label>
                 <input type="text" id="event_name" name="name" required value="{{ event.name }}" placeholder="例：夏のアイデアコンテスト">
             </div>
-            <div class="form-group">
-                <label for="start_date">開始日時</label>
-                <input type="datetime-local" id="start_date" name="start_date" required value="{{ event.start_date_str }}">
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date">開始日時</label>
+                    <input type="datetime-local" id="start_date" name="start_date" required value="{{ event.start_date_str }}">
+                </div>
+                <div class="form-group">
+                    <label for="end_date">終了日時</label>
+                    <input type="datetime-local" id="end_date" name="end_date" required value="{{ event.end_date_str }}">
+                </div>
             </div>
-            <div class="form-group">
-                <label for="end_date">終了日時</label>
-                <input type="datetime-local" id="end_date" name="end_date" required value="{{ event.end_date_str }}">
-            </div>
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 0.5rem;">
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label class="checkbox-label">
                     <input type="checkbox" id="is_public" name="is_public" value="1" {% if event.is_public %}checked{% endif %}>
                     <span>イベントを公開する（一覧に表示）</span>
                 </label>
-                <small style="color: #666; margin-top: 0.25rem;">チェックしない場合、パスワードを知っている人のみ参加できます</small>
+                <p class="form-hint">チェックを外すと非公開となり、パスワードを知っている人のみ参加できます</p>
             </div>
+
             <div class="button-group">
-                <button type="submit" class="btn btn-primary">更新する</button>
                 <a href="{{ url_for('event_detail', event_id=event.event_id) }}" class="btn btn-secondary">キャンセル</a>
+                <button type="submit" class="btn btn-primary">変更を保存する</button>
             </div>
         </form>
     </div>

@@ -6,6 +6,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='post_view.css') }}">
 {% endblock %}
 
+{% block header_intro %}
+<p class="header-eyebrow">POST DETAIL</p>
+<h1 class="header-title">投稿詳細</h1>
+{% endblock %}
+
 {% block content %}
 <div class="post-main">
     <article class="post-card glass-card">

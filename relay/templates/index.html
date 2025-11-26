@@ -6,6 +6,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 {% endblock %}
 
+{% block header_intro %}
+<p class="header-eyebrow">HOME</p>
+<h1 class="header-title">ホーム</h1>
+{% endblock %}
+
 {% block content %}
 <!-- Event Banner -->
 {% if active_events %}

@@ -229,13 +229,14 @@
     box-shadow: 0 4px 12px rgba(210, 105, 30, 0.3);
 }
 
-.user-info {
+/* ランキングページ専用のユーザー情報スタイル（独立） */
+.ranking-user-info {
     display: flex;
     align-items: center;
     gap: 1rem;
 }
 
-.user-avatar {
+.ranking-user-avatar {
     width: 52px;
     height: 52px;
     border-radius: 16px;
@@ -245,33 +246,45 @@
     justify-content: center;
     overflow: hidden;
     border: 1px solid rgba(226, 232, 240, 0.9);
+    flex-shrink: 0;
 }
 
-.avatar-image {
+.ranking-avatar-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
-.avatar-text {
+.ranking-avatar-text {
     font-weight: 700;
     color: #6d28d9;
+    font-size: 1.2rem;
 }
 
-.user-details {
+.ranking-user-details {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+    min-width: 0;
+    flex: 1;
 }
 
-.user-name {
+.ranking-user-name {
     font-weight: 700;
     color: #0f172a;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.user-id {
+.ranking-user-id {
     font-size: 0.85rem;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .rank-stats {
@@ -334,7 +347,7 @@
         border-radius: 0.625rem;
     }
 
-    .user-info {
+    .ranking-user-info {
         justify-content: space-between;
     }
 

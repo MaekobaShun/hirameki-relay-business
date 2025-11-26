@@ -175,6 +175,18 @@ def create_table():
                 created_at   TIMESTAMP NOT NULL
             )
         """)
+        
+        # Add read_at column for tracking read status (migration)
+        if using_supabase():
+            try:
+                con.execute("ALTER TABLE revival_notify ADD COLUMN IF NOT EXISTS read_at TIMESTAMP")
+            except Exception:
+                pass
+        else:
+            try:
+                con.execute("ALTER TABLE revival_notify ADD COLUMN read_at TIMESTAMP")
+            except Exception:
+                pass
 
         con.execute("""
             CREATE TABLE IF NOT EXISTS thanks (
@@ -413,13 +425,13 @@ def get_user_tickets(user_id: str) -> int:
     with get_connection() as con:
         try:
             row = con.execute(
-                "SELECT COALESCE(ticket_count, tickets, 0) FROM mypage WHERE user_id = ?",
+                "SELECT ticket_count FROM mypage WHERE user_id = ?",
                 (user_id,)
             ).fetchone()
         except Exception:
             try:
                 row = con.execute(
-                    "SELECT COALESCE(tickets, 0) FROM mypage WHERE user_id = ?",
+                    "SELECT tickets FROM mypage WHERE user_id = ?",
                     (user_id,)
                 ).fetchone()
             except Exception:

@@ -6,6 +6,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='event_detail.css') }}">
 {% endblock %}
 
+{% block header_intro %}
+<p class="header-eyebrow">EVENT ENDED</p>
+<h1 class="header-title">イベント終了</h1>
+{% endblock %}
+
 {% block content %}
 <div class="event-ended-container">
     <a href="{{ url_for('events') }}" class="back-link">← イベント一覧に戻る</a>

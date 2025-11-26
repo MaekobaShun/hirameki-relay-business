@@ -7,6 +7,7 @@ from flask import (
     session,
     flash,
     send_from_directory,
+    jsonify,
 )
 from relay.db import (
     fetch_random_item,
@@ -57,15 +58,17 @@ MAX_POST_LENGTH = 280
 @app.context_processor
 def inject_notifications():
     if 'user_id' not in session:
-        return dict(revival_notifications=[])
+        return dict(revival_notifications=[], unread_notification_count=0, ticket_count=0)
     
     user_id = session['user_id']
     with get_connection() as con:
+        # 全通知を取得（通知パネル表示用）
         revival_rows = con.execute("""
             SELECT 
                 rn.notify_id,
                 rn.created_at,
                 rn.picker_id,
+                rn.read_at,
                 picker.nickname,
                 picker.icon_path,
                 i.title,
@@ -77,19 +80,36 @@ def inject_notifications():
             ORDER BY rn.created_at DESC
         """, (user_id,)).fetchall()
 
+        # 未読通知数を取得（バッジ表示用）
+        unread_count_row = con.execute("""
+            SELECT COUNT(*) 
+            FROM revival_notify 
+            WHERE author_id = ? AND read_at IS NULL
+        """, (user_id,)).fetchone()
+        
+        unread_count = unread_count_row[0] if unread_count_row else 0
+
     revival_notifications = []
     for row in revival_rows:
         revival_notifications.append({
             'notify_id': row[0],
             'created_at': row[1],
             'picker_id': row[2],
-            'picker_nickname': row[3] if row[3] else '不明なユーザー',
-            'picker_icon_path': row[4],
-            'idea_title': row[5],
-            'category': row[6]
+            'read_at': row[3],
+            'picker_nickname': row[4] if row[4] else '不明なユーザー',
+            'picker_icon_path': row[5],
+            'idea_title': row[6],
+            'category': row[7]
         })
     
-    return dict(revival_notifications=revival_notifications)
+    # データベースからチケット数を取得
+    ticket_count = get_user_tickets(user_id)
+    
+    return dict(
+        revival_notifications=revival_notifications,
+        unread_notification_count=unread_count,
+        ticket_count=ticket_count
+    )
 
 
 def calculate_text_length(text):
@@ -278,6 +298,12 @@ def inheritance_form(idea_id):
             "SELECT user_id, nickname FROM mypage WHERE user_id = ?",
             (idea_row[4],)
         ).fetchone()
+        
+        # 保存済みの継承データがあるか確認
+        saved_inheritance = con.execute(
+            "SELECT add_point, add_detail FROM idea_inheritance WHERE parent_idea_id = ? AND child_user_id = ? AND child_idea_id IS NULL",
+            (idea_id, user_id)
+        ).fetchone()
     
     idea = {
         'idea_id': idea_row[0],
@@ -286,7 +312,9 @@ def inheritance_form(idea_id):
         'category': idea_row[3],
         'user_id': idea_row[4],
         'created_at': idea_row[5],
-        'author_nickname': parent_user_row[1] if parent_user_row else '不明なユーザー'
+        'author_nickname': parent_user_row[1] if parent_user_row else '不明なユーザー',
+        'saved_add_point': saved_inheritance[0] if saved_inheritance else '',
+        'saved_add_detail': saved_inheritance[1] if saved_inheritance else ''
     }
     
     return render_template(
@@ -371,6 +399,21 @@ def post_inheritance(idea_id):
     parent_idea_id = request.form.get('parent_idea_id')
     parent_user_id = request.form.get('parent_user_id')
 
+    # フォームから値が取得できない場合、保存済みデータを取得
+    if not add_point:
+        with get_connection() as con:
+            saved_inheritance = con.execute(
+                "SELECT add_point, add_detail FROM idea_inheritance WHERE parent_idea_id = ? AND child_user_id = ? AND child_idea_id IS NULL",
+                (parent_idea_id or idea_id, user_id)
+            ).fetchone()
+            
+            if saved_inheritance:
+                add_point = saved_inheritance[0] or ''
+                add_detail = saved_inheritance[1] or ''
+            else:
+                flash('追加したポイントを入力してください。')
+                return redirect(url_for('inheritance_form', idea_id=idea_id))
+
     if not add_point:
         flash('追加したポイントを入力してください。')
         return redirect(url_for('inheritance_form', idea_id=idea_id))
@@ -390,6 +433,12 @@ def post_inheritance(idea_id):
             flash('継承元のアイデアが見つかりません。')
             return redirect(url_for('mypage'))
 
+        # 保存済みの継承レコードがあるか確認
+        existing_inheritance = con.execute(
+            "SELECT inheritance_id FROM idea_inheritance WHERE parent_idea_id = ? AND child_user_id = ? AND child_idea_id IS NULL",
+            (parent_idea_id, user_id)
+        ).fetchone()
+
         # 新しいアイデアを作成（継承元の情報をベースに）
         child_idea_id = str(uuid.uuid4())
         created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -405,16 +454,87 @@ def post_inheritance(idea_id):
             (child_idea_id, child_title, add_detail, child_category, user_id, created_at, True)
         )
 
-        # 継承情報を登録
-        inheritance_id = str(uuid.uuid4())
-        con.execute(
-            """
-            INSERT INTO idea_inheritance 
-            (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, user_id, add_point, add_detail if add_detail else None, created_at)
-        )
+        # 既存の継承レコードがある場合は更新、なければ新規作成
+        if existing_inheritance:
+            # 既存レコードを更新（child_idea_idを設定）
+            con.execute(
+                """
+                UPDATE idea_inheritance 
+                SET child_idea_id = ?, add_point = ?, add_detail = ?, created_at = ?
+                WHERE inheritance_id = ?
+                """,
+                (child_idea_id, add_point, add_detail if add_detail else None, created_at, existing_inheritance[0])
+            )
+        else:
+            # 新規継承情報を登録
+            inheritance_id = str(uuid.uuid4())
+            con.execute(
+                """
+                INSERT INTO idea_inheritance 
+                (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, user_id, add_point, add_detail if add_detail else None, created_at)
+            )
+        
+        if not using_supabase():
+            con.commit()
+    
+    # イベント中に投稿した場合、イベントに関連付ける
+    active_events = get_active_events()
+    now = datetime.now()
+    for event_row in active_events:
+        # is_publicカラムが追加されたため9カラム
+        event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e, is_public_e = event_row
+        # 日時が文字列の場合はdatetimeオブジェクトに変換
+        if isinstance(start_date_e, str):
+            try:
+                start_date_e = datetime.strptime(start_date_e, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    start_date_e = datetime.strptime(start_date_e, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+        if isinstance(end_date_e, str):
+            try:
+                end_date_e = datetime.strptime(end_date_e, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    end_date_e = datetime.strptime(end_date_e, '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    continue
+        if is_event_participant(event_id_e, user_id) and start_date_e <= now <= end_date_e:
+            add_event_idea(event_id_e, child_idea_id)
+    
+    # アイデア投稿時にチケット+1枚付与
+    # セッションのチケット数を取得（なければDBから取得）
+    current_tickets = session.get('tickets')
+    if current_tickets is None:
+        current_tickets = get_user_tickets(user_id)
+    
+    # チケットを1枚増やす
+    new_tickets = current_tickets + 1
+    
+    # DBとセッションの両方を更新
+    with get_connection() as con:
+        try:
+            con.execute(
+                "UPDATE mypage SET ticket_count = ? WHERE user_id = ?",
+                (new_tickets, user_id)
+            )
+        except Exception:
+            try:
+                con.execute(
+                    "UPDATE mypage SET tickets = ? WHERE user_id = ?",
+                    (new_tickets, user_id)
+                )
+            except Exception:
+                pass
+        if not using_supabase():
+            con.commit()
+    
+    session['tickets'] = new_tickets
+    session.modified = True
 
     flash('アイデアを継承して新規投稿しました。')
     return redirect(url_for('index'))
@@ -723,6 +843,11 @@ def signup():
             session['nickname'] = nickname
             session['email'] = email
             session['icon_path'] = icon_path
+            
+            # 新規ユーザーのチケット数を取得してセッションに設定（初期値は0）
+            tickets = get_user_tickets(user_id)
+            session['tickets'] = tickets
+            
             return redirect(url_for('index'))
 
     return render_template(
@@ -776,10 +901,15 @@ def login():
         if not errors and user_row:
             session.clear()
             session.permanent = True
-            session['user_id'] = user_row[0]
+            user_id = user_row[0]
+            session['user_id'] = user_id
             session['nickname'] = user_row[1]
             session['email'] = user_row[3]
             session['icon_path'] = user_row[4]
+            
+            # チケット数をDBから取得してセッションに設定
+            tickets = get_user_tickets(user_id)
+            session['tickets'] = tickets
 
             if next_url:
                 return redirect(next_url)
@@ -882,13 +1012,13 @@ def spin():
         # トランザクション内でDBのチケット数を取得（セッションと整合性チェック用）
         try:
             ticket_row = con.execute(
-                "SELECT COALESCE(ticket_count, tickets, 1) FROM mypage WHERE user_id = ?",
+                "SELECT ticket_count FROM mypage WHERE user_id = ?",
                 (current_user_id,)
             ).fetchone()
         except Exception:
             try:
                 ticket_row = con.execute(
-                    "SELECT COALESCE(tickets, 1) FROM mypage WHERE user_id = ?",
+                    "SELECT tickets FROM mypage WHERE user_id = ?",
                     (current_user_id,)
                 ).fetchone()
             except Exception:
@@ -1144,6 +1274,38 @@ def mypage():
     )
 
 
+@app.route('/notifications/mark-read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    """通知を既読状態にする（通知パネルを開いたときに呼ばれる）"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    with get_connection() as con:
+        # 該当ユーザーの全未読通知を既読状態に更新
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        con.execute("""
+            UPDATE revival_notify 
+            SET read_at = ? 
+            WHERE author_id = ? AND read_at IS NULL
+        """, (now, user_id))
+        
+        if not using_supabase():
+            con.commit()
+        
+        # 更新後の未読通知数を取得
+        unread_count_row = con.execute("""
+            SELECT COUNT(*) 
+            FROM revival_notify 
+            WHERE author_id = ? AND read_at IS NULL
+        """, (user_id,)).fetchone()
+        
+        unread_count = unread_count_row[0] if unread_count_row else 0
+    
+    return jsonify({'success': True, 'unread_count': unread_count}), 200
+
+
 @app.route('/ranking')
 @login_required
 def ranking():
@@ -1217,6 +1379,9 @@ def events():
     user_id = session['user_id']
     user_name = session.get('nickname', 'ユーザー')
     
+    # 日時パース用の関数をインポート
+    from relay.db import _parse_datetime
+    
     # 参加中のイベント（全て）と公開のイベント（参加していないもののみ）を取得
     all_events = get_all_events()
     public_events = get_public_events()
@@ -1230,22 +1395,9 @@ def events():
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
         if is_event_participant(event_id, user_id):
             # 日時が文字列の場合はdatetimeオブジェクトに変換
-            if isinstance(start_date, str):
-                try:
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
-                    except ValueError:
-                        continue
-            if isinstance(end_date, str):
-                try:
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
-                    except ValueError:
-                        continue
+            start_date = _parse_datetime(start_date)
+            end_date = _parse_datetime(end_date)
+            created_at = _parse_datetime(created_at)
             
             # 開催者情報を取得
             creator_row = get_user_by_user_id(created_by)
@@ -1269,22 +1421,9 @@ def events():
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
         if not is_event_participant(event_id, user_id):
             # 日時が文字列の場合はdatetimeオブジェクトに変換
-            if isinstance(start_date, str):
-                try:
-                    start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
-                    except ValueError:
-                        continue
-            if isinstance(end_date, str):
-                try:
-                    end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
-                except ValueError:
-                    try:
-                        end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
-                    except ValueError:
-                        continue
+            start_date = _parse_datetime(start_date)
+            end_date = _parse_datetime(end_date)
+            created_at = _parse_datetime(created_at)
             
             # 開催者情報を取得
             creator_row = get_user_by_user_id(created_by)
@@ -1500,11 +1639,17 @@ def event_detail(event_id):
             'post_count': post_count
         })
     
+    # datetime-localフォーマットに変換（モーダル用）
+    start_date_str = start_date.strftime('%Y-%m-%dT%H:%M')
+    end_date_str = end_date.strftime('%Y-%m-%dT%H:%M')
+    
     event = {
         'event_id': event_id,
         'name': name,
         'start_date': start_date,
         'end_date': end_date,
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
         'status': status,
         'created_by': created_by,
         'creator_nickname': creator_nickname,

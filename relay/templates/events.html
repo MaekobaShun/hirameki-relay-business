@@ -1,82 +1,164 @@
 {% extends "base.html" %}
 
-{% block title %}期間限定イベント - ひらめきリレー{% endblock %}
+{% block title %}イベント - ひらめきリレー{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 {% endblock %}
 
-{% block content %}
-<div class="events-container">
-    <a href="{{ url_for('index') }}" class="back-link">← ハブに戻る</a>
-    
-    <h1 style="text-align: center; margin-bottom: 2rem;">🎉 期間限定イベント</h1>
 
-    <!-- 参加中のイベント -->
-    {% if my_events %}
-    <div class="event-section">
-        <h2>✨ 参加中のイベント</h2>
-        <ul class="event-list">
-            {% for event in my_events %}
-            <li class="event-item" style="background: #e8f5e9; border-left-color: #4caf50;">
-                <h3>{{ event.name }}</h3>
-                <p><strong>開催者:</strong> {{ event.creator_nickname }}さん</p>
-                <p><strong>開始:</strong> {{ event.start_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                <p><strong>終了:</strong> {{ event.end_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                <p><strong>公開設定:</strong> {% if event.is_public %}公開{% else %}非公開{% endif %}</p>
-                {% if event.status == 'active' %}
-                    <span class="event-status status-active">開催中</span>
-                    <form method="POST" action="{{ url_for('event_join') }}" style="display: inline-block; margin-top: 0.5rem;">
-                        <input type="hidden" name="event_id" value="{{ event.event_id }}">
-                        <button type="submit" class="btn btn-primary" style="margin-left: 0.5rem;">イベントページへ</button>
-                    </form>
-                {% elif event.status == 'upcoming' %}
-                    <span class="event-status status-upcoming">開催予定</span>
-                {% elif event.status == 'ended' %}
-                    <span class="event-status status-ended">終了</span>
-                    <form method="POST" action="{{ url_for('event_join') }}" style="display: inline-block; margin-top: 0.5rem;">
-                        <input type="hidden" name="event_id" value="{{ event.event_id }}">
-                        <button type="submit" class="btn btn-secondary" style="margin-left: 0.5rem;">結果を見る</button>
-                    </form>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
+{% block header_intro %}
+<p class="header-eyebrow">EVENTS</p>
+<h1 class="header-title">イベント</h1>
+{% endblock %}
+
+{% block content %}
+<div class="events-wrapper">
+    <!-- Action Buttons (Create / Join) -->
+    <div class="event-actions-grid">
+        <!-- Create Event -->
+        <div class="action-card create-event-card" onclick="document.getElementById('create-event-modal').showModal()">
+            <div class="card-icon-wrapper">
+                <img src="{{ url_for('static', filename='images/calendar-add-svgrepo-com.svg') }}" class="card-icon-svg" alt="作成">
+            </div>
+            <div class="card-text">
+                <h3>イベントを作成</h3>
+                <p>新しいテーマでイベントを主催しよう</p>
+            </div>
+        </div>
+        
+        <!-- Join Event (Quick) -->
+        <div class="action-card join-event-card" onclick="document.getElementById('join-event-modal').showModal()">
+            <div class="card-icon-wrapper" style="background: #e0e7ff;">
+                <img src="{{ url_for('static', filename='images/entry-svgrepo-com.svg') }}" class="card-icon-svg" alt="参加">
+            </div>
+            <div class="card-text">
+                <h3>イベントに参加</h3>
+                <p>IDとパスワードで参加</p>
+            </div>
+        </div>
     </div>
+
+    <!-- My Events Section -->
+    {% if my_events %}
+    <section class="ranking-section" style="margin-top: 2rem;">
+        <div class="section-header">
+            <h3 class="section-title">
+                <img src="{{ url_for('static', filename='images/ranking-1-svgrepo-com.svg') }}" class="section-title-icon icon-participating" alt="参加中">
+                参加中のイベント
+            </h3>
+        </div>
+        <div class="my-events-grid">
+            {% for event in my_events %}
+                <!-- Event Card (MyPage Style) -->
+                <div class="event-card {{ event.status }}">
+                    <div class="event-card-body">
+                        <div class="event-card-header-badges">
+                            {% if event.status == 'active' %}
+                                <span class="status-badge status-active">開催中</span>
+                            {% elif event.status == 'upcoming' %}
+                                <span class="status-badge status-upcoming">開催予定</span>
+                            {% else %}
+                                <span class="status-badge status-ended">終了</span>
+                            {% endif %}
+                            
+                            {% if event.is_public %}
+                                <span class="visibility-badge">公開</span>
+                            {% else %}
+                                <span class="visibility-badge private">非公開</span>
+                            {% endif %}
+                        </div>
+                        
+                        <h3 class="event-card-title">{{ event.name }}</h3>
+                        
+                        <div class="event-info">
+                            <div class="info-item">
+                                <span class="icon">📅</span>
+                                {{ event.start_date.strftime('%m/%d %H:%M') }} 〜
+                            </div>
+                            <div class="info-item">
+                                <span class="icon">👤</span>
+                                主催: {{ event.creator_nickname }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="event-card-footer">
+                        <span style="font-size: 0.8rem; color: #94a3b8;">{{ event.created_at.strftime('%Y/%m/%d') }}</span>
+                        <form method="POST" action="{{ url_for('event_join') }}">
+                            <input type="hidden" name="event_id" value="{{ event.event_id }}">
+                            <button type="submit" class="btn-sm {% if event.status == 'ended' %}btn-secondary-sm{% else %}btn-primary-sm{% endif %}">
+                                {% if event.status == 'ended' %}結果を見る{% else %}会場へ移動{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
     {% endif %}
 
-    <!-- イベントに参加する -->
-    <div class="event-section">
-        <h2>イベントに参加する</h2>
-        <form method="POST" action="{{ url_for('event_join') }}" class="event-form">
-            <div class="form-group">
-                <label for="event_select">イベントを選択（任意）</label>
-                <select id="event_select" name="event_select">
-                    <option value="">イベントを選択...</option>
-                    {% if other_events %}
-                        {% for event in other_events %}
-                            {% if event.status == 'active' or event.status == 'upcoming' %}
-                            <option value="{{ event.event_id }}" data-name="{{ event.name }}">{{ event.name }} ({{ event.start_date.strftime('%Y年%m月%d日') }})</option>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </select>
-                <small style="color: #666; margin-top: 0.25rem;">イベントを選択すると、パスワードのみで参加できます</small>
+    <!-- All Public Events List -->
+    <section class="ranking-section" style="margin-top: 2rem;">
+        <div class="section-header">
+            <h3 class="section-title">
+                <img src="{{ url_for('static', filename='images/event-svgrepo-com.svg') }}" class="section-title-icon icon-all-events" alt="一覧">
+                開催中のイベント一覧
+            </h3>
+        </div>
+        
+        {% if other_events %}
+        <div class="all-events-grid">
+            {% for event in other_events %}
+            <div class="event-card {{ event.status }}">
+                <div class="event-card-body">
+                    <div class="event-card-header-badges">
+                        {% if event.status == 'active' %}
+                            <span class="status-badge status-active">開催中</span>
+                        {% elif event.status == 'upcoming' %}
+                            <span class="status-badge status-upcoming">開催予定</span>
+                        {% endif %}
+                        
+                        <span class="visibility-badge">公開</span>
+                    </div>
+                    
+                    <h3 class="event-card-title">{{ event.name }}</h3>
+                    
+                    <div class="event-info">
+                        <div class="info-item">
+                            <span class="icon">📅</span>
+                            {{ event.start_date.strftime('%Y/%m/%d') }} 〜
+                        </div>
+                        <div class="info-item">
+                            <span class="icon">👤</span>
+                            主催: {{ event.creator_nickname }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="event-card-footer">
+                    <span style="font-size: 0.8rem; color: #94a3b8;">{{ event.created_at.strftime('%Y/%m/%d') }}</span>
+                    <button class="btn-sm btn-primary-sm" onclick="openJoinModal('{{ event.event_id }}')">参加</button>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="event_password">パスワード</label>
-                <input type="password" id="event_password" name="password" required placeholder="イベントパスワードを入力">
-                <input type="hidden" id="selected_event_id" name="event_id" value="">
-            </div>
-            <button type="submit" class="btn btn-primary">参加する</button>
-        </form>
-    </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align: center; color: #9ca3af; padding: 3rem; background: #f9fafb; border-radius: 1rem;">現在公開されているイベントはありません</p>
+        {% endif %}
+    </section>
+</div>
 
-    <!-- イベントを開催する -->
-    <div class="event-section">
-        <h2>イベントを開催する</h2>
-        <form method="POST" action="{{ url_for('event_create') }}" class="event-form">
-            <div class="form-group">
+<!-- Modals -->
+<dialog id="create-event-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>イベントを作成</h3>
+            <button type="button" onclick="document.getElementById('create-event-modal').close()" class="modal-close-btn">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('event_create') }}" class="modal-form">
+             <div class="form-group">
                 <label for="event_name">イベント名</label>
                 <input type="text" id="event_name" name="name" required placeholder="例：夏のアイデアコンテスト">
             </div>
@@ -84,66 +166,88 @@
                 <label for="event_password_create">パスワード</label>
                 <input type="password" id="event_password_create" name="password" required placeholder="参加者に共有するパスワード">
             </div>
-            <div class="form-group">
-                <label for="start_date">開始日時</label>
-                <input type="datetime-local" id="start_date" name="start_date" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date">開始日時</label>
+                    <input type="datetime-local" id="start_date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label for="end_date">終了日時</label>
+                    <input type="datetime-local" id="end_date" name="end_date" required>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="end_date">終了日時</label>
-                <input type="datetime-local" id="end_date" name="end_date" required>
-            </div>
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
                     <input type="checkbox" id="is_public" name="is_public" value="1">
-                    <span>イベントを公開する（一覧に表示）</span>
+                    <span>イベントを公開する</span>
                 </label>
-                <small style="color: #666; margin-top: 0.25rem;">チェックしない場合、パスワードを知っている人のみ参加できます</small>
+                <p class="form-hint">公開しない場合、パスワードを知っている人のみ参加できます</p>
             </div>
-            <button type="submit" class="btn btn-primary">イベントを作成</button>
+            <div class="modal-footer">
+                <button type="button" onclick="document.getElementById('create-event-modal').close()" class="btn-cancel">キャンセル</button>
+                <button type="submit" class="btn-submit">作成する</button>
+            </div>
         </form>
     </div>
+</dialog>
 
-    <!-- すべてのイベント一覧 -->
-    {% if other_events %}
-    <div class="event-section">
-        <h2>すべてのイベント</h2>
-        <ul class="event-list">
-            {% for event in other_events %}
-            <li class="event-item">
-                <h3>{{ event.name }}</h3>
-                <p><strong>開催者:</strong> {{ event.creator_nickname }}さん</p>
-                <p><strong>開始:</strong> {{ event.start_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                <p><strong>終了:</strong> {{ event.end_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-                {% if event.status == 'active' %}
-                    <span class="event-status status-active">開催中</span>
-                {% elif event.status == 'upcoming' %}
-                    <span class="event-status status-upcoming">開催予定</span>
-                {% elif event.status == 'ended' %}
-                    <span class="event-status status-ended">終了</span>
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
+<dialog id="join-event-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>イベントに参加</h3>
+            <button type="button" onclick="document.getElementById('join-event-modal').close()" class="modal-close-btn">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('event_join') }}" class="modal-form">
+             <div class="form-group">
+                <label for="event_select_modal">イベントを選択（任意）</label>
+                <select id="event_select_modal" name="event_select" onchange="updateEventId(this)">
+                    <option value="">イベントを選択...</option>
+                    {% if other_events %}
+                        {% for event in other_events %}
+                            {% if event.status == 'active' or event.status == 'upcoming' %}
+                            <option value="{{ event.event_id }}">{{ event.name }} ({{ event.start_date.strftime('%m/%d') }}~)</option>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="event_password_modal">パスワード</label>
+                <input type="password" id="event_password_modal" name="password" required placeholder="イベントパスワードを入力">
+                <input type="hidden" id="modal_event_id" name="event_id" value="">
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="document.getElementById('join-event-modal').close()" class="btn-cancel">キャンセル</button>
+                <button type="submit" class="btn-submit">参加する</button>
+            </div>
+        </form>
     </div>
-    {% endif %}
-    
-    {% if not my_events and not other_events %}
-    <div class="event-section">
-        <p style="color: #999; text-align: center; padding: 2rem;">現在開催中のイベントはありません</p>
-    </div>
-    {% endif %}
-</div>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-    document.getElementById('event_select').addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption.value) {
-            document.getElementById('selected_event_id').value = selectedOption.value;
-        } else {
-            document.getElementById('selected_event_id').value = '';
-        }
+    function openJoinModal(eventId) {
+        const modal = document.getElementById('join-event-modal');
+        const select = document.getElementById('event_select_modal');
+        
+        document.getElementById('modal_event_id').value = eventId;
+        select.value = eventId;
+        
+        modal.showModal();
+    }
+    
+    function updateEventId(select) {
+         document.getElementById('modal_event_id').value = select.value;
+    }
+    
+    // Close modal when clicking outside
+    document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
     });
 </script>
 {% endblock %}
