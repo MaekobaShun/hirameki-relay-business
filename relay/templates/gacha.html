@@ -43,22 +43,25 @@
             <strong>次のアイデアは、ここからはじまる。</strong>
         </p>
         <div class="gacha-ticket-display">
-            <span class="ticket-label">🎫 ガチャチケット</span>
+            <span class="ticket-label">
+                <img src="{{ url_for('static', filename='images/ticket-5-svgrepo-com.svg') }}" alt="チケット" class="ticket-icon">
+                ガチャチケット
+            </span>
             <span class="ticket-count" id="ticket-count">{{ ticket_count }}</span>
             <span class="ticket-unit">枚</span>
         </div>
         
         <form action="{{ url_for('spin') }}" method="get">
             {% set category_options = [
-                {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'icon': '🌈'},
-                {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'icon': '📈'},
-                {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'icon': '🎓'},
-                {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'icon': '🎉'},
-                {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'icon': '🎨'},
-                {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'icon': '🏡'},
-                {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'icon': '💬'},
-                {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'icon': '🛠️'},
-                {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'icon': '✨'}
+                {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'svg': 'infinity-svgrepo-com.svg'},
+                {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'svg': 'business-svgrepo-com.svg'},
+                {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'svg': 'university-graduates-cap-silhouette-svgrepo-com.svg'},
+                {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'svg': 'map-entertainment-svgrepo-com.svg'},
+                {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'svg': 'palette-svgrepo-com.svg'},
+                {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'svg': 'sofa-svgrepo-com.svg'},
+                {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'svg': 'chat-svgrepo-com.svg'},
+                {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'svg': 'develop-svgrepo-com.svg'},
+                {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'svg': 'other-svgrepo-com.svg'}
             ] %}
             {% set selected_value = selected_category or '' %}
             <div class="category-section">
@@ -77,7 +80,9 @@
                             >
                             <label for="{{ option_id }}" class="category-option">
                                 <span class="category-header">
-                                    <span class="category-icon" aria-hidden="true">{{ option.icon }}</span>
+                                    <span class="category-icon" aria-hidden="true">
+                                        <img src="{{ url_for('static', filename='images/' ~ option.svg) }}" alt="{{ option.label }}アイコン" class="category-svg-icon">
+                                    </span>
                                     <span class="category-name">{{ option.label }}</span>
                                 </span>
                                 <span class="category-description">{{ option.description }}</span>

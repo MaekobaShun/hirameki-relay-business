@@ -1390,10 +1390,10 @@ def events():
     my_events = []  # 参加中のイベント
     other_events = []  # 公開されているが参加していないイベント
     
-    # 参加中のイベントを取得
+    # 参加中のイベントを取得（終了したイベントは除外）
     for event_row in all_events:
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
-        if is_event_participant(event_id, user_id):
+        if is_event_participant(event_id, user_id) and status != 'ended':
             # 日時が文字列の場合はdatetimeオブジェクトに変換
             start_date = _parse_datetime(start_date)
             end_date = _parse_datetime(end_date)
@@ -1416,10 +1416,10 @@ def events():
                 'created_at': created_at
             })
     
-    # 公開されているが参加していないイベントを取得
+    # 公開されているが参加していないイベントを取得（終了したイベントは除外）
     for event_row in public_events:
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
-        if not is_event_participant(event_id, user_id):
+        if not is_event_participant(event_id, user_id) and status != 'ended':
             # 日時が文字列の場合はdatetimeオブジェクトに変換
             start_date = _parse_datetime(start_date)
             end_date = _parse_datetime(end_date)
@@ -1442,10 +1442,44 @@ def events():
                 'created_at': created_at
             })
     
+    # 終了したイベントを取得（参加しているもの、または公開されているもの）
+    ended_events = []
+    for event_row in all_events:
+        event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
+        if status == 'ended':
+            # 日時が文字列の場合はdatetimeオブジェクトに変換
+            start_date = _parse_datetime(start_date)
+            end_date = _parse_datetime(end_date)
+            created_at = _parse_datetime(created_at)
+            
+            # 開催者情報を取得
+            creator_row = get_user_by_user_id(created_by)
+            creator_nickname = creator_row[1] if creator_row else '不明'
+            
+            # ユーザーが参加しているか、公開されているイベントのみ表示
+            is_participant = is_event_participant(event_id, user_id)
+            if is_participant or is_public:
+                ended_events.append({
+                    'event_id': event_id,
+                    'name': name,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'status': status,
+                    'is_participant': is_participant,
+                    'created_by': created_by,
+                    'creator_nickname': creator_nickname,
+                    'is_public': is_public,
+                    'created_at': created_at
+                })
+    
+    # 終了したイベントを終了日時の降順でソート（新しいものから）
+    ended_events.sort(key=lambda x: x['end_date'], reverse=True)
+    
     return render_template(
         'events.html',
         my_events=my_events,
         other_events=other_events,
+        ended_events=ended_events,
         user_name=user_name
     )
 

@@ -117,6 +117,11 @@
     filter: invert(38%) sepia(66%) saturate(1388%) hue-rotate(236deg) brightness(93%) contrast(94%) !important;
 }
 
+.ranking-section .section-title-icon.icon-ended {
+    /* Red for ended events */
+    filter: invert(29%) sepia(91%) saturate(2989%) hue-rotate(345deg) brightness(93%) contrast(92%) !important;
+}
+
 /* =========================================
    Event Grid & Cards (MyPage Style)
    ========================================= */
@@ -224,6 +229,15 @@
     font-size: 1rem;
     width: 1.2rem;
     text-align: center;
+}
+
+.info-icon {
+    width: 1rem;
+    height: 1rem;
+    object-fit: contain;
+    flex-shrink: 0;
+    /* デフォルト色: #475569 (slate-600) */
+    filter: invert(35%) sepia(7%) saturate(763%) hue-rotate(182deg) brightness(93%) contrast(88%);
 }
 
 /* Card Footer */
@@ -369,6 +383,34 @@ dialog::backdrop {
     font-size: 1rem;
     transition: border-color 0.2s;
     box-sizing: border-box;
+}
+
+/* Password toggle styles */
+.password-toggle {
+    position: relative;
+}
+
+.password-input-wrapper {
+    position: relative;
+}
+
+.password-input-wrapper input[type="password"],
+.password-input-wrapper input[type="text"] {
+    padding-right: 4rem;
+}
+
+.password-input-wrapper button {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #7c3aed;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0;
 }
 
 /* datetime-local 入力フィールドの幅を確保 */

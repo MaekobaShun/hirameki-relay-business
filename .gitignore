@@ -150,3 +150,8 @@ Thumbs.db
 **/__pycache__/
 **/uploads/
 
+# Temporary verification/test files
+verify_query.py
+check_db.py
+check_columns.py
+

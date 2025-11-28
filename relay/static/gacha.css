@@ -88,6 +88,17 @@
     color: #0f172a;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ticket-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    object-fit: contain;
+    /* チケットアイコンに色をつける (#2563eb = 青) */
+    filter: invert(45%) sepia(94%) saturate(2188%) hue-rotate(208deg) brightness(98%) contrast(91%);
 }
 
 .gacha-ticket-display .ticket-count {
@@ -154,6 +165,13 @@
 
 .category-icon {
     font-size: 1.45rem;
+}
+
+.category-svg-icon {
+    width: 1.45rem;
+    height: 1.45rem;
+    object-fit: contain;
+    display: block;
 }
 
 .category-name {
