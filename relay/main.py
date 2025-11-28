@@ -1493,7 +1493,7 @@ def event_create():
     password = request.form.get('password', '').strip()
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
-    is_public = request.form.get('is_public') == '1'  # チェックボックスの値
+    is_public = True  # 常に公開
     
     if not name or not password or not start_date_str or not end_date_str:
         flash('すべての項目を入力してください。')
@@ -1805,7 +1805,7 @@ def event_edit(event_id):
         new_name = request.form.get('name', '').strip()
         new_start_date_str = request.form.get('start_date', '').strip()
         new_end_date_str = request.form.get('end_date', '').strip()
-        new_is_public = request.form.get('is_public') == '1'
+        new_is_public = True  # 常に公開
         
         if not new_name or not new_start_date_str or not new_end_date_str:
             flash('すべての項目を入力してください。')

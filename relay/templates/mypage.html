@@ -23,6 +23,9 @@
         const ideaCards = document.querySelectorAll('.idea-card[role="button"]');
         const logoutForm = document.getElementById('logout-form');
 
+        // カテゴリフィルター機能
+        // 各タブのフィルター関数を保持するオブジェクト（先に定義）
+        const filterFunctions = {};
 
         tabButtons.forEach(button => {
             button.addEventListener('click', function () {
@@ -36,7 +39,14 @@
                 // すべてのタブコンテンツを非表示
                 tabContents.forEach(content => content.classList.remove('active'));
                 // 選択されたタブコンテンツを表示
-                document.getElementById(targetTab + '-tab').classList.add('active');
+                const activeTabContent = document.getElementById(targetTab + '-tab');
+                activeTabContent.classList.add('active');
+                
+                // 表示されたタブのフィルター状態を復元
+                // フィルター関数が存在する場合は実行
+                if (filterFunctions[targetTab]) {
+                    filterFunctions[targetTab]();
+                }
             });
         });
 
@@ -112,6 +122,61 @@
                 }
             });
         }
+
+        // カテゴリフィルター機能
+        function setupCategoryFilter(filterId, gridId) {
+            const filter = document.getElementById(filterId);
+            const grid = document.getElementById(gridId);
+            
+            if (!filter || !grid) return;
+            
+            // フィルタリング処理を関数として定義
+            const applyFilter = function() {
+                const selectedCategory = filter.value;
+                const cards = grid.querySelectorAll('.idea-card');
+                let visibleCount = 0;
+                
+                cards.forEach(card => {
+                    const cardCategory = card.getAttribute('data-category');
+                    if (selectedCategory === '' || cardCategory === selectedCategory) {
+                        card.style.display = '';
+                        visibleCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // フィルタリング後の結果が0件の場合、メッセージを表示
+                const emptyMessage = grid.parentElement.querySelector('.filtered-empty-message');
+                if (visibleCount === 0) {
+                    if (!emptyMessage) {
+                        const msg = document.createElement('p');
+                        msg.className = 'empty-message filtered-empty-message';
+                        msg.textContent = '選択したカテゴリに該当するアイデアがありません。';
+                        grid.parentElement.appendChild(msg);
+                    }
+                } else {
+                    if (emptyMessage) {
+                        emptyMessage.remove();
+                    }
+                }
+            };
+            
+            // フィルター変更時に適用
+            filter.addEventListener('change', applyFilter);
+            
+            // タブIDを取得して、フィルター関数を保存
+            const tabId = filterId.replace('-category-filter', '');
+            filterFunctions[tabId] = applyFilter;
+            
+            // 初期状態ではフィルターを適用しない（すべて表示）
+            // タブがアクティブになったときに適用される
+        }
+
+        // 各タブのフィルターを設定
+        setupCategoryFilter('posted-category-filter', 'posted-ideas-grid');
+        setupCategoryFilter('gacha-category-filter', 'gacha-ideas-grid');
+        setupCategoryFilter('inheritance-category-filter', 'inheritance-ideas-grid');
     });
 </script>
 {% endblock %}
@@ -183,10 +248,25 @@
             {% if ideas == [] %}
             <p class="empty-message">まだ投稿したアイデアがありません。</p>
             {% else %}
-            <div class="ideas-grid">
+            <div class="category-filter-wrapper">
+                <label for="posted-category-filter" class="filter-label">カテゴリで絞り込み：</label>
+                <select id="posted-category-filter" class="category-filter">
+                    <option value="">すべて</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="ideas-grid" id="posted-ideas-grid">
                 {% for idea in ideas %}
                 <div class="idea-card posted-card" role="button" tabindex="0"
-                    data-detail-url="{{ url_for('post_view', idea_id=idea.idea_id) }}">
+                    data-detail-url="{{ url_for('post_view', idea_id=idea.idea_id) }}"
+                    data-category="{{ idea.category }}">
                     <div class="card-body">
                         <div class="card-header">
                             <span class="card-category">{{ idea.category }}</span>
@@ -216,10 +296,25 @@
             {% if gacha_results == [] %}
             <p class="empty-message">まだガチャを回していません。</p>
             {% else %}
-            <div class="ideas-grid">
+            <div class="category-filter-wrapper">
+                <label for="gacha-category-filter" class="filter-label">カテゴリで絞り込み：</label>
+                <select id="gacha-category-filter" class="category-filter">
+                    <option value="">すべて</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="ideas-grid" id="gacha-ideas-grid">
                 {% for result in gacha_results %}
                 <div class="idea-card gacha-card" role="button" tabindex="0"
-                    data-detail-url="{{ url_for('post_view', idea_id=result.idea_id) }}">
+                    data-detail-url="{{ url_for('post_view', idea_id=result.idea_id) }}"
+                    data-category="{{ result.category }}">
                     <div class="card-body">
                         <div class="card-header">
                             <span class="card-category">{{ result.category }}</span>
@@ -245,10 +340,25 @@
             {% if inheritance_items == [] %}
             <p class="empty-message">まだ継承したアイデアがありません。</p>
             {% else %}
-            <div class="ideas-grid">
+            <div class="category-filter-wrapper">
+                <label for="inheritance-category-filter" class="filter-label">カテゴリで絞り込み：</label>
+                <select id="inheritance-category-filter" class="category-filter">
+                    <option value="">すべて</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="ideas-grid" id="inheritance-ideas-grid">
                 {% for item in inheritance_items %}
                 <div class="idea-card inheritance-card" role="button" tabindex="0"
-                    data-detail-url="{{ url_for('inheritance_view', inheritance_id=item.inheritance_id) }}">
+                    data-detail-url="{{ url_for('inheritance_view', inheritance_id=item.inheritance_id) }}"
+                    data-category="{{ item.parent_category }}">
                     <div class="card-body">
                         <div class="card-header">
                             <span class="card-category">{{ item.parent_category }}</span>

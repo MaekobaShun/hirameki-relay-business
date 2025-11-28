@@ -130,14 +130,6 @@
                 </div>
             </div>
 
-            <div class="form-group" style="margin-top: 1.5rem;">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="is_public" name="is_public" value="1" {% if event.is_public %}checked{% endif %}>
-                    <span>イベントを公開する（一覧に表示）</span>
-                </label>
-                <p class="form-hint">チェックを外すと非公開となり、パスワードを知っている人のみ参加できます</p>
-            </div>
-
             <div class="button-group">
                 <a href="{{ url_for('event_detail', event_id=event.event_id) }}" class="btn btn-secondary">キャンセル</a>
                 <button type="submit" class="btn btn-primary">変更を保存する</button>

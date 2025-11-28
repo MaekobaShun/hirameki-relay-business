@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ひらめきリレー{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/logo_3.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/logo_3.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='images/logo_3.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo_3.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='common.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
@@ -13,7 +17,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <a href="{{ url_for('index') }}" class="sidebar-header">
-            <div class="logo-icon">💡</div>
+            <img src="{{ url_for('static', filename='images/logo_2.png') }}" alt="ひらめきリレー" class="logo-icon">
             <h2 class="logo-text">ひらめきリレー</h2>
         </a>
         <nav class="sidebar-nav">
