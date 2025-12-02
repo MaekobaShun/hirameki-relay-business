@@ -203,9 +203,16 @@ def create_table():
         # 既存のテーブルがある場合は再作成（マイグレーション）
         try:
             # 既存のテーブルがあるか確認
-            existing_table = con.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='idea_inheritance'"
-            ).fetchone()
+            if using_supabase():
+                # PostgreSQL用のクエリ
+                existing_table = con.execute(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'idea_inheritance'"
+                ).fetchone()
+            else:
+                # SQLite用のクエリ
+                existing_table = con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='idea_inheritance'"
+                ).fetchone()
             
             if existing_table and not using_supabase():
                 # SQLiteの場合：既存のデータを一時テーブルにコピー
