@@ -515,9 +515,13 @@ def get_all_events():
 def get_public_events():
     """公開されているイベントを取得"""
     with get_connection() as con:
-        rows = con.execute(
-            "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE is_public = 1 ORDER BY start_date DESC"
-        ).fetchall()
+        if using_supabase():
+            # PostgreSQL用: BOOLEAN型なのでTRUEを使用
+            query = "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE is_public = TRUE ORDER BY start_date DESC"
+        else:
+            # SQLite用: INTEGER型なので1を使用
+            query = "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE is_public = 1 ORDER BY start_date DESC"
+        rows = con.execute(query).fetchall()
     return rows
 
 
