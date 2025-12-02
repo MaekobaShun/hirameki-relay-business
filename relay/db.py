@@ -317,7 +317,7 @@ def create_table():
             CREATE TABLE IF NOT EXISTS events (
                 event_id       VARCHAR(64) PRIMARY KEY,
                 name           VARCHAR(128) NOT NULL,
-                password_hash  VARCHAR(128) NOT NULL,
+                password_hash  TEXT NOT NULL,
                 start_date     TIMESTAMP NOT NULL,
                 end_date       TIMESTAMP NOT NULL,
                 created_at     TIMESTAMP NOT NULL,
@@ -331,6 +331,11 @@ def create_table():
         if using_supabase():
             try:
                 con.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE NOT NULL")
+            except Exception:
+                pass
+            # password_hashカラムの型変更（マイグレーション）
+            try:
+                con.execute("ALTER TABLE events ALTER COLUMN password_hash TYPE TEXT")
             except Exception:
                 pass
         else:
@@ -678,7 +683,7 @@ def get_event_ranking(event_id: str):
             LEFT JOIN event_ideas ei ON ep.event_id = ei.event_id
             LEFT JOIN ideas i ON ei.idea_id = i.idea_id AND i.user_id = u.user_id
             WHERE ep.event_id = ?
-            GROUP BY u.user_id, u.nickname, u.icon_path
+            GROUP BY u.user_id, u.nickname, u.icon_path, ep.joined_at
             HAVING COUNT(i.idea_id) > 0
             ORDER BY post_count DESC, ep.joined_at ASC
         """, (event_id,)).fetchall()
@@ -752,7 +757,7 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
                 FROM mypage u
                 INNER JOIN ideas i ON u.user_id = i.user_id
                 WHERE i.created_at >= ?
-                GROUP BY u.user_id, u.nickname, u.icon_path
+                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
                 ORDER BY post_count DESC, u.created_at ASC
                 LIMIT ?
             """)
@@ -767,7 +772,7 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
                     COUNT(i.idea_id) as post_count
                 FROM mypage u
                 LEFT JOIN ideas i ON u.user_id = i.user_id
-                GROUP BY u.user_id, u.nickname, u.icon_path
+                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
                 HAVING COUNT(i.idea_id) > 0
                 ORDER BY post_count DESC, u.created_at ASC
                 LIMIT ?
@@ -818,7 +823,7 @@ def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
                 FROM mypage u
                 INNER JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
                 WHERE ii.created_at >= ?
-                GROUP BY u.user_id, u.nickname, u.icon_path
+                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
                 ORDER BY inheritance_count DESC, u.created_at ASC
                 LIMIT ?
             """)
@@ -833,7 +838,7 @@ def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
                     COUNT(ii.inheritance_id) as inheritance_count
                 FROM mypage u
                 LEFT JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
-                GROUP BY u.user_id, u.nickname, u.icon_path
+                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
                 HAVING COUNT(ii.inheritance_id) > 0
                 ORDER BY inheritance_count DESC, u.created_at ASC
                 LIMIT ?
