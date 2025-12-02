@@ -3,7 +3,9 @@
 {% block title %}{{ event.name }} - イベント終了 - ひらめきリレー{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='event_detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='events.css') }}">
 {% endblock %}
 
 {% block header_intro %}
@@ -12,82 +14,210 @@
 {% endblock %}
 
 {% block content %}
-<div class="event-ended-container">
-    <a href="{{ url_for('events') }}" class="back-link">← イベント一覧に戻る</a>
+<div class="event-dashboard-wrapper">
+    <!-- Event Info Card -->
+    <div class="event-info-card ended-event-card">
+        <div class="header-breadcrumbs">
+            <a href="{{ url_for('events') }}" class="back-link">
+                <span class="back-arrow">←</span> イベント一覧
+            </a>
+        </div>
+        <h1 class="event-title">{{ event.name }}</h1>
+        <div class="header-meta">
+            <span class="meta-item">
+                <span class="icon">👤</span>
+                主催: {{ event.creator_nickname }}
+            </span>
+            <span class="meta-item">
+                <span class="icon">📅</span>
+                {{ event.start_date.strftime('%Y/%m/%d %H:%M') }} 〜 {{ event.end_date.strftime('%Y/%m/%d %H:%M') }}
+            </span>
+        </div>
+        <div class="ended-badge-container">
+            <span class="status-badge status-ended">イベント終了</span>
+        </div>
+    </div>
 
-    <div class="event-header ended">
-        <h1>{{ event.name }}</h1>
-        <div class="ended-badge">イベント終了</div>
-        <div style="margin-top: 1rem;">
-            <p>開始: {{ event.start_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
-            <p>終了: {{ event.end_date.strftime('%Y年%m月%d日 %H:%M') }}</p>
+    <!-- Alert Banner -->
+    <div class="alert-banner">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+            <strong>このランキングは最終結果です</strong>
+            <p>イベントは終了しており、結果は確定しています。</p>
         </div>
-        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.2); border-radius: 8px;">
-            <p style="margin: 0;">このイベントは <strong>{{ event.creator_nickname }}</strong> さんが作成しました</p>
-            <small style="opacity: 0.8;">作成日時: {{ event.created_at.strftime('%Y年%m月%d日 %H:%M') if event.created_at else '' }}</small>
-        </div>
+    </div>
+
+    <!-- Admin Actions -->
         {% if event.is_creator %}
-        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;">
-            <a href="{{ url_for('event_edit', event_id=event.event_id) }}" class="btn btn-secondary">編集</a>
-            <form method="POST" action="{{ url_for('event_delete', event_id=event.event_id) }}" style="display: inline;" onsubmit="return confirm('本当にこのイベントを削除しますか？この操作は取り消せません。');">
-                <button type="submit" class="btn btn-danger">削除</button>
+    <div class="admin-actions-card">
+        <div class="admin-actions-header">
+            <h3>主催者メニュー</h3>
+        </div>
+        <div class="admin-buttons">
+            <button type="button" onclick="document.getElementById('edit-event-modal').showModal()" class="btn-admin btn-edit">
+                <span class="icon">✏️</span> 編集
+            </button>
+            <form method="POST" action="{{ url_for('event_delete', event_id=event.event_id) }}" onsubmit="return confirm('本当に削除しますか？この操作は取り消せません。');" class="delete-form">
+                <button type="submit" class="btn-admin btn-delete">
+                    <span class="icon">🗑️</span> 削除
+                </button>
             </form>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 
-    <div class="frozen-note">
-        <strong>⚠️ このランキングは最終結果です（凍結されています）</strong>
-    </div>
-
-    <!-- 統計情報 -->
-    <div class="event-section">
-        <h2>📊 イベント最終統計</h2>
+    <!-- Stats Grid -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number">{{ participant_count }}</div>
+            <div class="stat-icon-wrapper">
+                <img src="{{ url_for('static', filename='images/user-svgrepo-com.svg') }}" alt="参加者">
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ participant_count }}</div>
                 <div class="stat-label">参加者</div>
             </div>
+            </div>
             <div class="stat-card">
-                <div class="stat-number">{{ idea_count }}</div>
+            <div class="stat-icon-wrapper post-icon">
+                <img src="{{ url_for('static', filename='images/edit-1479-svgrepo-com.svg') }}" alt="投稿">
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ idea_count }}</div>
                 <div class="stat-label">投稿数</div>
             </div>
         </div>
     </div>
 
-    <!-- 最終ランキング -->
-    <div class="event-section">
-        <h2>🏆 最終ランキング</h2>
+    <div class="content-columns">
+        <!-- Rankings Column -->
+        <div class="column-main">
+            <section class="ranking-section">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <img src="{{ url_for('static', filename='images/trophy-svgrepo-com.svg') }}" class="section-title-icon" alt="ランキング">
+                        最終ランキング
+                    </h3>
+                </div>
+                
         {% if rankings %}
-            <ul class="ranking-list">
+                <div class="ranking-list">
                 {% for ranking in rankings %}
                 {% set rank = loop.index %}
-                <li class="ranking-item">
-                    <div class="rank-number">
-                        {% if rank == 1 %}🥇
-                        {% elif rank == 2 %}🥈
-                        {% elif rank == 3 %}🥉
-                        {% else %}{{ rank }}{% endif %}
+                    <div class="ranking-item">
+                        <div class="rank-number {% if rank == 1 %}rank-gold{% elif rank == 2 %}rank-silver{% elif rank == 3 %}rank-bronze{% endif %}">
+                            {{ rank }}
                     </div>
+                        <div class="rank-user-info">
                     <div class="user-avatar">
                         {% if ranking.icon_path %}
                             {% if ranking.icon_path.startswith('uploads/') %}
                                 <img src="{{ url_for('uploaded_file', filename=ranking.icon_path[8:]) }}" alt="{{ ranking.nickname }}">
                             {% elif ranking.icon_path.startswith('http') %}
                                 <img src="{{ ranking.icon_path }}" alt="{{ ranking.nickname }}">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename=ranking.icon_path) }}" alt="{{ ranking.nickname }}">
                             {% endif %}
+                                {% else %}
+                                    <span class="avatar-text">{{ ranking.nickname[0] }}</span>
                         {% endif %}
+                            </div>
+                            <div class="rank-details">
+                                <div class="rank-name">{{ ranking.nickname }}</div>
+                            </div>
+                        </div>
+                        <div class="rank-score">
+                            <div class="score-value">{{ ranking.post_count }}</div>
+                            <div class="score-label">投稿</div>
+                        </div>
                     </div>
-                    <div>
-                        <strong>{{ ranking.nickname }}</strong>
-                        <div style="color: #666; font-size: 0.9rem;">{{ ranking.post_count }}投稿</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>ランキングデータがありません</p>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+
+        <!-- Participants Column -->
+        <div class="column-side">
+            <section class="participants-section">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        👥 参加者一覧
+                    </h3>
+                    <span class="participant-count-badge">{{ participant_count }}名</span>
+                </div>
+                <div class="participants-list">
+                    {% for participant in participants %}
+                    <div class="participant-item">
+                        <div class="user-avatar small">
+                            {% if participant.icon_path %}
+                                {% if participant.icon_path.startswith('uploads/') %}
+                                    <img src="{{ url_for('uploaded_file', filename=participant.icon_path[8:]) }}" alt="{{ participant.nickname }}">
+                                {% elif participant.icon_path.startswith('http') %}
+                                    <img src="{{ participant.icon_path }}" alt="{{ participant.nickname }}">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename=participant.icon_path) }}" alt="{{ participant.nickname }}">
+                                {% endif %}
+                            {% else %}
+                                <span class="avatar-text">{{ participant.nickname[0] }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="participant-name">{{ participant.nickname }}</span>
                     </div>
-                </li>
                 {% endfor %}
-            </ul>
-        {% else %}
-            <p style="color: #999; text-align: center; padding: 2rem;">ランキングデータがありません</p>
-        {% endif %}
+                </div>
+            </section>
+        </div>
     </div>
 </div>
+
+<!-- Edit Event Modal -->
+{% if event.is_creator %}
+<dialog id="edit-event-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>イベントを編集</h3>
+            <button type="button" onclick="document.getElementById('edit-event-modal').close()" class="modal-close-btn">×</button>
+        </div>
+        <form method="POST" action="{{ url_for('event_edit', event_id=event.event_id) }}" class="modal-form">
+            <div class="form-group">
+                <label for="edit_event_name">イベント名</label>
+                <input type="text" id="edit_event_name" name="name" required value="{{ event.name }}" placeholder="例：夏のアイデアコンテスト">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_start_date">開始日時</label>
+                    <input type="datetime-local" id="edit_start_date" name="start_date" required value="{{ event.start_date_str }}">
+                </div>
+                <div class="form-group">
+                    <label for="edit_end_date">終了日時</label>
+                    <input type="datetime-local" id="edit_end_date" name="end_date" required value="{{ event.end_date_str }}">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="document.getElementById('edit-event-modal').close()" class="btn-cancel">キャンセル</button>
+                <button type="submit" class="btn-submit">変更を保存する</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Close modal when clicking outside
+    document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+    });
+</script>
 {% endblock %}

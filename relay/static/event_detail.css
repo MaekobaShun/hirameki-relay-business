@@ -73,6 +73,38 @@
 
 .status-public { background: #d1fae5; color: #065f46; }
 .status-private { background: #f3f4f6; color: #4b5563; }
+.status-ended { background: #f3f4f6; color: #4b5563; }
+
+.ended-badge-container {
+    margin-top: 1rem;
+}
+
+/* Alert Banner */
+.alert-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 0.75rem;
+    color: #92400e;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+}
+
+.alert-content strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.alert-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
 
 /* Countdown Banner */
 .countdown-banner {
@@ -299,6 +331,52 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: #f9fafb;
+    transition: background 0.2s;
+}
+
+.ranking-item:hover {
+    background: #f3f4f6;
+}
+
+.rank-number {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #6b7280;
+}
+
+.rank-gold {
+    color: #d97706;
+    font-size: 1.5rem;
+}
+
+.rank-silver {
+    color: #4b5563;
+    font-size: 1.5rem;
+}
+
+.rank-bronze {
+    color: #92400e;
+    font-size: 1.5rem;
+}
+
 .rank-user-info {
     flex: 1;
     display: flex;
@@ -311,7 +389,26 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 600;
+    color: #1f2937;
 }
+
+.rank-score {
+    text-align: right;
+    min-width: 60px;
+}
+
+.score-value {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #1f2937;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
 
 /* Participants Section */
 .participants-section {
