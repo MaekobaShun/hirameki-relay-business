@@ -4,6 +4,53 @@
             return;
         }
 
+        // Sidebar Toggle Logic
+        const sidebarToggle = header.querySelector('.sidebar-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        if (sidebarToggle && sidebar && sidebarOverlay) {
+            const closeSidebar = () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('active');
+                sidebarToggle.setAttribute('aria-expanded', 'false');
+            };
+
+            const openSidebar = () => {
+                sidebar.classList.add('open');
+                sidebarOverlay.classList.add('active');
+                sidebarToggle.setAttribute('aria-expanded', 'true');
+            };
+
+            sidebarToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = sidebar.classList.contains('open');
+                if (isOpen) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+
+            sidebarOverlay.addEventListener('click', closeSidebar);
+
+            // Close on link click (mobile)
+            sidebar.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        closeSidebar();
+                    }
+                });
+            });
+
+            // Close on resize if screen becomes large
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) {
+                    closeSidebar();
+                }
+            });
+        }
+
         // Mobile Menu Logic (Legacy / Signup only)
         const toggle = header.querySelector('.menu-toggle');
         const nav = header.querySelector('.mypage-nav');

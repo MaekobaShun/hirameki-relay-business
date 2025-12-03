@@ -409,7 +409,77 @@
 }
 
 @media (max-width: 768px) {
+    .dashboard-content {
+        padding: 1rem;
+    }
+
     .action-cards-container {
         grid-template-columns: 1fr;
+    }
+
+    .event-banner {
+        padding: 1.5rem;
+        min-height: auto;
+    }
+
+    .event-banner h2 {
+        font-size: 1.75rem;
+    }
+
+    .event-subtitle {
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .event-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .event-action {
+        position: static;
+        margin-top: 1.5rem;
+        text-align: center;
+    }
+
+    .join-btn {
+        width: 100%;
+        display: block;
+        text-align: center;
+    }
+
+    .ranking-section {
+        padding: 1rem;
+    }
+    
+    .ranking-tab {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .ranking-item {
+        padding: 0.75rem;
+    }
+
+    .rank-number {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+        margin-right: 0.75rem;
+    }
+
+    .rank-number.rank-gold,
+    .rank-number.rank-silver,
+    .rank-number.rank-bronze {
+        font-size: 1.1rem;
+    }
+
+    .rank-avatar, .rank-avatar-placeholder {
+        width: 36px;
+        height: 36px;
+    }
+
+    .score-value {
+        font-size: 1.1rem;
     }
 }
