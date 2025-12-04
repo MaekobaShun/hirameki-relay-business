@@ -37,6 +37,7 @@ from relay.db import (
     get_ranking_by_period,
     get_inheritance_ranking_by_period,
 )
+from relay.content_moderation import check_content
 import uuid
 from datetime import datetime
 import unicodedata
@@ -448,6 +449,22 @@ def post_inheritance(idea_id):
         child_detail = parent_idea[1]  # 親の詳細を使用
         child_category = parent_idea[2]  # 親のカテゴリを使用
 
+        # AI判定を実行（継承投稿の場合、add_detailが投稿内容）
+        print("\n[継承投稿処理] AI判定を開始します...")
+        is_inappropriate, is_thin_content, reason = check_content(child_title, add_detail, child_category)
+        
+        if is_inappropriate:
+            print(f"[継承投稿処理] 不適切な投稿として拒否されました: {reason}")
+            flash(f'不適切な内容が含まれているため、投稿できませんでした。{reason if reason else ""}')
+            return redirect(url_for('inheritance_form', idea_id=idea_id))
+        
+        if is_thin_content:
+            print(f"[継承投稿処理] 内容が薄い投稿として拒否されました: {reason}")
+            flash(f'内容が不十分なため、投稿できませんでした。{reason if reason else "もう少し詳しく説明してください。"}')
+            return redirect(url_for('inheritance_form', idea_id=idea_id))
+        
+        print("[継承投稿処理] AI判定を通過しました。投稿を保存します...")
+
         # アイデアを登録
         con.execute(
             "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -610,6 +627,22 @@ def post():
             f'アイデアの詳細は全角{MAX_POST_LENGTH // 2}文字（半角{MAX_POST_LENGTH}文字）以内で入力してください。'
         )
         return redirect(url_for('form'))
+
+    # AI判定を実行
+    print("\n[投稿処理] AI判定を開始します...")
+    is_inappropriate, is_thin_content, reason = check_content(title, detail, category)
+    
+    if is_inappropriate:
+        print(f"[投稿処理] 不適切な投稿として拒否されました: {reason}")
+        flash(f'不適切な内容が含まれているため、投稿できませんでした。{reason if reason else ""}')
+        return redirect(url_for('form'))
+    
+    if is_thin_content:
+        print(f"[投稿処理] 内容が薄い投稿として拒否されました: {reason}")
+        flash(f'内容が不十分なため、投稿できませんでした。{reason if reason else "もう少し詳しく説明してください。"}')
+        return redirect(url_for('form'))
+    
+    print("[投稿処理] AI判定を通過しました。投稿を保存します...")
 
     with get_connection() as con:
         idea_id = str(uuid.uuid4())
@@ -1390,10 +1423,10 @@ def events():
     my_events = []  # 参加中のイベント
     other_events = []  # 公開されているが参加していないイベント
     
-    # 参加中のイベントを取得（終了したイベントは除外）
+    # 参加中のイベントを取得
     for event_row in all_events:
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
-        if is_event_participant(event_id, user_id) and status != 'ended':
+        if is_event_participant(event_id, user_id):
             # 日時が文字列の場合はdatetimeオブジェクトに変換
             start_date = _parse_datetime(start_date)
             end_date = _parse_datetime(end_date)
@@ -1416,10 +1449,10 @@ def events():
                 'created_at': created_at
             })
     
-    # 公開されているが参加していないイベントを取得（終了したイベントは除外）
+    # 公開されているが参加していないイベントを取得
     for event_row in public_events:
         event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
-        if not is_event_participant(event_id, user_id) and status != 'ended':
+        if not is_event_participant(event_id, user_id):
             # 日時が文字列の場合はdatetimeオブジェクトに変換
             start_date = _parse_datetime(start_date)
             end_date = _parse_datetime(end_date)
@@ -1442,44 +1475,10 @@ def events():
                 'created_at': created_at
             })
     
-    # 終了したイベントを取得（参加しているもの、または公開されているもの）
-    ended_events = []
-    for event_row in all_events:
-        event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public = event_row
-        if status == 'ended':
-            # 日時が文字列の場合はdatetimeオブジェクトに変換
-            start_date = _parse_datetime(start_date)
-            end_date = _parse_datetime(end_date)
-            created_at = _parse_datetime(created_at)
-            
-            # 開催者情報を取得
-            creator_row = get_user_by_user_id(created_by)
-            creator_nickname = creator_row[1] if creator_row else '不明'
-            
-            # ユーザーが参加しているか、公開されているイベントのみ表示
-            is_participant = is_event_participant(event_id, user_id)
-            if is_participant or is_public:
-                ended_events.append({
-                    'event_id': event_id,
-                    'name': name,
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'status': status,
-                    'is_participant': is_participant,
-                    'created_by': created_by,
-                    'creator_nickname': creator_nickname,
-                    'is_public': is_public,
-                    'created_at': created_at
-                })
-    
-    # 終了したイベントを終了日時の降順でソート（新しいものから）
-    ended_events.sort(key=lambda x: x['end_date'], reverse=True)
-    
     return render_template(
         'events.html',
         my_events=my_events,
         other_events=other_events,
-        ended_events=ended_events,
         user_name=user_name
     )
 
@@ -1493,7 +1492,7 @@ def event_create():
     password = request.form.get('password', '').strip()
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
-    is_public = True  # 常に公開
+    is_public = request.form.get('is_public') == '1'  # チェックボックスの値
     
     if not name or not password or not start_date_str or not end_date_str:
         flash('すべての項目を入力してください。')
@@ -1805,7 +1804,7 @@ def event_edit(event_id):
         new_name = request.form.get('name', '').strip()
         new_start_date_str = request.form.get('start_date', '').strip()
         new_end_date_str = request.form.get('end_date', '').strip()
-        new_is_public = True  # 常に公開
+        new_is_public = request.form.get('is_public') == '1'
         
         if not new_name or not new_start_date_str or not new_end_date_str:
             flash('すべての項目を入力してください。')

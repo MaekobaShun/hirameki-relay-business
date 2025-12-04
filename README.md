@@ -51,6 +51,8 @@ pip install -r requirements.txt
 | `UPLOAD_FOLDER` | アイコン保存先（Cloudinary を使う場合は fallback のみ）例: `/opt/render/project/src/static/uploads` |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Cloudinary を利用する場合に必須 |
 | `CLOUDINARY_UPLOAD_FOLDER` | 任意。Cloudinary 上のフォルダ名 |
+| `GEMINI_API_KEY` | Google Gemini API キー（投稿内容のAI判定に使用） |
+| `ENABLE_CONTENT_MODERATION` | コンテンツモデレーションの有効/無効（デフォルト: `true`） |
 
 ※ Supabase に直接接続する場合は `SUPABASE_HOST`, `SUPABASE_PORT`, `SUPABASE_DB`, `SUPABASE_USER`, `SUPABASE_PASSWORD` の組み合わせでも可。  
 ※ 環境変数が不足している場合は自動的にローカル SQLite (`database.db`) を利用します。
