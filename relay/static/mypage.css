@@ -334,8 +334,9 @@
     padding: 2.5rem 3rem;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 280px);
-    min-height: 500px;
+    height: 1000px; /* タブナビ + カード3つ分 + パディング */
+    max-height: 1000px;
+    min-height: 1000px;
 }
 
 /* タブナビゲーション */
@@ -413,7 +414,8 @@
 
 .tab-content.active {
     display: block;
-    max-height: calc(100vh - 450px);
+    height: 850px; /* カード3つ分の高さ: (240px × 3) + (gap × 2) + フィルター + 余白 */
+    max-height: 850px;
     overflow-y: auto;
 }
 
@@ -895,6 +897,34 @@
     .card-footer {
         padding: 0.75rem 1.25rem;
     }
+    
+    /* モバイルでのカード詳細を1行に */
+    .card-detail {
+        height: calc(0.95rem * 1.6 * 1); /* 1行分の高さに変更 */
+        -webkit-line-clamp: 1;
+    }
+    
+    /* 継承情報も1行相当の高さに */
+    .inheritance-info {
+        min-height: calc(0.95rem * 1.6 * 1);
+    }
+    
+    /* カードの最小高さを低く */
+    .idea-card {
+        min-height: 200px;
+    }
+    
+    /* モバイルでのコンテンツセクション高さ調整 */
+    .content-section {
+        height: auto;
+        max-height: 800px;
+        min-height: 600px;
+    }
+    
+    .tab-content.active {
+        height: 700px;
+        max-height: 700px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -904,5 +934,35 @@
 
     .profile-card {
         padding: 1.75rem 1.5rem;
+    }
+    
+    /* カード詳細を1行に */
+    .card-detail {
+        font-size: 0.9rem;
+        height: calc(0.9rem * 1.6 * 1);
+        -webkit-line-clamp: 1;
+    }
+    
+    /* 継承情報も1行相当の高さに */
+    .inheritance-info {
+        min-height: calc(0.9rem * 1.6 * 1);
+        padding: 0.5rem 0.75rem;
+    }
+    
+    /* カードの最小高さを更に低く */
+    .idea-card {
+        min-height: 180px;
+    }
+    
+    /* 小画面でのコンテンツセクション高さ調整 */
+    .content-section {
+        height: auto;
+        max-height: 700px;
+        min-height: 500px;
+    }
+    
+    .tab-content.active {
+        height: 600px;
+        max-height: 600px;
     }
 }

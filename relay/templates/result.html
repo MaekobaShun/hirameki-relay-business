@@ -14,7 +14,7 @@
 {% block content %}
 <div class="result-main">
     <section class="result-wrapper">
-        <div class="result-icon">🎉</div>
+        <!-- <div class="result-icon">🎉</div> -->
         <h2 class="result-title">ガチャ結果</h2>
 
         {% with messages = get_flashed_messages() %}
@@ -35,13 +35,17 @@
             {% if inheritance_count is defined or gacha_count is defined %}
             <div class="result-stats">
                 <div class="result-stat-item">
-                    <span class="result-stat-icon">🔄</span>
+                    <span class="result-stat-icon">
+                        <img src="{{ url_for('static', filename='images/inheritance_logo.svg') }}" alt="継承アイコン" class="result-svg-icon inheritance-icon">
+                    </span>
                     <span class="result-stat-label">継承された数</span>
                     <span class="result-stat-value">{{ inheritance_count }}</span>
                 </div>
                 <div class="result-stat-item">
-                    <span class="result-stat-icon">🎟️</span>
-                    <span class="result-stat-label">ガチャで引かれた数</span>
+                    <span class="result-stat-icon">
+                        <img src="{{ url_for('static', filename='images/die-5-svgrepo-com.svg') }}" alt="ガチャアイコン" class="result-svg-icon gacha-icon">
+                    </span>
+                    <span class="result-stat-label">引かれた数</span>
                     <span class="result-stat-value">{{ gacha_count }}</span>
                 </div>
             </div>
