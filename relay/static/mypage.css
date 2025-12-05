@@ -853,6 +853,12 @@
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE/Edge */
+        padding-bottom: 0.75rem; /* スクロールバーとの干渉を防ぐ */
+        margin-bottom: 1.5rem;
+        /* コンテナ端での見切れ防止用パディング */
+        padding-left: 2px;
+        padding-right: 2px;
+        padding-top: 2px;
     }
     
     .tabs::-webkit-scrollbar {
@@ -863,7 +869,7 @@
         flex: 1;
         min-width: auto;
         justify-content: center;
-        padding: 0.6rem 0.25rem;
+        padding: 0.85rem 0.5rem;
     }
     
     .tab-label {
@@ -917,13 +923,14 @@
     /* モバイルでのコンテンツセクション高さ調整 */
     .content-section {
         height: auto;
-        max-height: 800px;
+        max-height: none;
         min-height: 600px;
+        padding: 2rem 1.5rem; /* 上下のパディングを確保 */
     }
     
     .tab-content.active {
-        height: 700px;
-        max-height: 700px;
+        height: auto;
+        max-height: 800px; /* 必要に応じて制限 */
     }
 }
 
@@ -957,12 +964,13 @@
     /* 小画面でのコンテンツセクション高さ調整 */
     .content-section {
         height: auto;
-        max-height: 700px;
+        max-height: none;
         min-height: 500px;
+        padding: 1.5rem 1rem;
     }
     
     .tab-content.active {
-        height: 600px;
-        max-height: 600px;
+        height: auto;
+        max-height: 700px;
     }
 }

@@ -25,11 +25,15 @@
         <h1 class="event-title">{{ event.name }}</h1>
         <div class="header-meta">
             <span class="meta-item">
-                <span class="icon">👤</span>
+                <span class="icon">
+                    <img src="{{ url_for('static', filename='images/user-svgrepo-com.svg') }}" alt="主催者" class="meta-icon">
+                </span>
                 主催: {{ event.creator_nickname }}
             </span>
             <span class="meta-item">
-                <span class="icon">📅</span>
+                <span class="icon">
+                    <img src="{{ url_for('static', filename='images/event-svgrepo-com.svg') }}" alt="期間" class="meta-icon">
+                </span>
                 {{ event.start_date.strftime('%Y/%m/%d %H:%M') }} 〜 {{ event.end_date.strftime('%Y/%m/%d %H:%M') }}
             </span>
         </div>
@@ -40,7 +44,9 @@
 
     <!-- Alert Banner -->
     <div class="alert-banner">
-        <div class="alert-icon">⚠️</div>
+        <div class="alert-icon">
+            <img src="{{ url_for('static', filename='images/bell-svgrepo-com.svg') }}" alt="通知" class="alert-icon-img">
+        </div>
         <div class="alert-content">
             <strong>このランキングは最終結果です</strong>
             <p>イベントは終了しており、結果は確定しています。</p>
@@ -55,11 +61,15 @@
         </div>
         <div class="admin-buttons">
             <button type="button" onclick="document.getElementById('edit-event-modal').showModal()" class="btn-admin btn-edit">
-                <span class="icon">✏️</span> 編集
+                <span class="icon">
+                    <img src="{{ url_for('static', filename='images/edit-1479-svgrepo-com.svg') }}" alt="編集" class="admin-icon">
+                </span> 編集
             </button>
             <form method="POST" action="{{ url_for('event_delete', event_id=event.event_id) }}" onsubmit="return confirm('本当に削除しますか？この操作は取り消せません。');" class="delete-form">
                 <button type="submit" class="btn-admin btn-delete">
-                    <span class="icon">🗑️</span> 削除
+                    <span class="icon">
+                        <img src="{{ url_for('static', filename='images/trash-svgrepo-com.svg') }}" alt="削除" class="admin-icon">
+                    </span> 削除
                 </button>
             </form>
         </div>
@@ -145,7 +155,8 @@
             <section class="participants-section">
                 <div class="section-header">
                     <h3 class="section-title">
-                        👥 参加者一覧
+                        <img src="{{ url_for('static', filename='images/users-svgrepo-com.svg') }}" alt="参加者" class="section-title-icon">
+                        参加者一覧
                     </h3>
                     <span class="participant-count-badge">{{ participant_count }}名</span>
                 </div>
