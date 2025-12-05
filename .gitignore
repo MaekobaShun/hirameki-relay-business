@@ -154,4 +154,5 @@ Thumbs.db
 verify_query.py
 check_db.py
 check_columns.py
+**database.db
 

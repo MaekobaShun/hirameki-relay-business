@@ -172,12 +172,16 @@
     height: 1.45rem;
     object-fit: contain;
     display: block;
+    /* デフォルトはより濃いグレー */
+    filter: grayscale(100%) brightness(0.5) opacity(0.6);
+    transition: filter 0.3s ease;
 }
 
 .category-name {
     font-size: 1rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #0f172a; /* デフォルトは黒 */
+    transition: color 0.3s ease;
 }
 
 .category-description {
@@ -192,10 +196,77 @@
     border-color: rgba(99, 102, 241, 0.6);
 }
 
+/* ホバー時にアイコンに色をつける */
+.category-option:hover .category-svg-icon {
+    filter: grayscale(0%) brightness(1);
+}
+
 .category-input:checked + .category-option {
     border-color: transparent;
     background: linear-gradient(135deg, rgba(129, 140, 248, 0.15), rgba(248, 113, 113, 0.15));
     box-shadow: 0 24px 48px rgba(79, 70, 229, 0.22);
+}
+
+/* 選択時にアイコンに色をつける */
+.category-input:checked + .category-option .category-svg-icon {
+    filter: grayscale(0%) brightness(1);
+}
+
+/* 各カテゴリの色定義 */
+.category-item[data-category-color="purple"] {
+    --category-color: #8b5cf6;
+    --icon-filter: invert(46%) sepia(98%) saturate(2250%) hue-rotate(246deg) brightness(98%) contrast(93%);
+}
+
+.category-item[data-category-color="blue"] {
+    --category-color: #3b82f6;
+    --icon-filter: invert(47%) sepia(96%) saturate(1523%) hue-rotate(201deg) brightness(100%) contrast(93%);
+}
+
+.category-item[data-category-color="green"] {
+    --category-color: #10b981;
+    --icon-filter: invert(63%) sepia(78%) saturate(1752%) hue-rotate(121deg) brightness(91%) contrast(87%);
+}
+
+.category-item[data-category-color="pink"] {
+    --category-color: #ec4899;
+    --icon-filter: invert(43%) sepia(78%) saturate(2476%) hue-rotate(305deg) brightness(95%) contrast(96%);
+}
+
+.category-item[data-category-color="orange"] {
+    --category-color: #f97316;
+    --icon-filter: invert(54%) sepia(94%) saturate(2897%) hue-rotate(6deg) brightness(100%) contrast(96%);
+}
+
+.category-item[data-category-color="teal"] {
+    --category-color: #14b8a6;
+    --icon-filter: invert(59%) sepia(62%) saturate(1526%) hue-rotate(136deg) brightness(92%) contrast(88%);
+}
+
+.category-item[data-category-color="cyan"] {
+    --category-color: #06b6d4;
+    --icon-filter: invert(56%) sepia(74%) saturate(1794%) hue-rotate(157deg) brightness(94%) contrast(92%);
+}
+
+.category-item[data-category-color="indigo"] {
+    --category-color: #6366f1;
+    --icon-filter: invert(44%) sepia(97%) saturate(3178%) hue-rotate(230deg) brightness(98%) contrast(91%);
+}
+
+.category-item[data-category-color="gray"] {
+    --category-color: #6b7280;
+    --icon-filter: invert(48%) sepia(11%) saturate(613%) hue-rotate(184deg) brightness(93%) contrast(86%);
+}
+
+/* ホバーと選択時に各色を適用（アイコンと文字） */
+.category-option:hover .category-svg-icon,
+.category-input:checked + .category-option .category-svg-icon {
+    filter: var(--icon-filter, grayscale(0%) brightness(1));
+}
+
+.category-option:hover .category-name,
+.category-input:checked + .category-option .category-name {
+    color: var(--category-color, #0f172a);
 }
 
 .category-input:focus-visible + .category-option {

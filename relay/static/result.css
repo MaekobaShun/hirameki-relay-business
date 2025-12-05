@@ -157,6 +157,25 @@
 .result-stat-icon {
     font-size: 1.8rem;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.result-stat-icon .result-svg-icon {
+    width: 2rem;
+    height: 2rem;
+    opacity: 0.85;
+}
+
+/* 継承アイコンの色 - ピンク系 */
+.result-stat-icon .inheritance-icon {
+    filter: invert(43%) sepia(78%) saturate(2476%) hue-rotate(305deg) brightness(95%) contrast(96%);
+}
+
+/* ガチャアイコンの色 - 紫系 */
+.result-stat-icon .gacha-icon {
+    filter: invert(34%) sepia(98%) saturate(1780%) hue-rotate(246deg) brightness(94%) contrast(94%);
 }
 
 .result-stat-label {
@@ -245,13 +264,14 @@
     }
 
     .result-stats {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 1rem;
     }
 
     .result-stat-item {
-        min-width: auto;
-        width: 100%;
+        min-width: 120px;
+        flex: 1;
     }
 
     .result-actions {

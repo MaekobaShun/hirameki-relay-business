@@ -53,15 +53,15 @@
         
         <form action="{{ url_for('spin') }}" method="get">
             {% set category_options = [
-                {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'svg': 'infinity-svgrepo-com.svg'},
-                {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'svg': 'business-svgrepo-com.svg'},
-                {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'svg': 'university-graduates-cap-silhouette-svgrepo-com.svg'},
-                {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'svg': 'map-entertainment-svgrepo-com.svg'},
-                {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'svg': 'palette-svgrepo-com.svg'},
-                {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'svg': 'sofa-svgrepo-com.svg'},
-                {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'svg': 'chat-svgrepo-com.svg'},
-                {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'svg': 'develop-svgrepo-com.svg'},
-                {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'svg': 'other-svgrepo-com.svg'}
+                {'value': '', 'label': 'すべて', 'description': 'すべてのカテゴリから', 'svg': 'infinity-svgrepo-com.svg', 'color': 'purple'},
+                {'value': 'ビジネス・業務効率化', 'label': 'ビジネス・業務効率化', 'description': '業務改善・自動化アイデア', 'svg': 'business-svgrepo-com.svg', 'color': 'blue'},
+                {'value': '教育', 'label': '教育', 'description': '学びをアップデート', 'svg': 'university-graduates-cap-silhouette-svgrepo-com.svg', 'color': 'green'},
+                {'value': 'エンタメ', 'label': 'エンタメ', 'description': 'ワクワクを生む発想', 'svg': 'map-entertainment-svgrepo-com.svg', 'color': 'pink'},
+                {'value': 'クリエイティブ・創作支援', 'label': 'クリエイティブ・創作支援', 'description': 'ものづくりを加速', 'svg': 'palette-svgrepo-com.svg', 'color': 'orange'},
+                {'value': '生活・ライフスタイル', 'label': '生活・ライフスタイル', 'description': '暮らしを豊かに', 'svg': 'sofa-svgrepo-com.svg', 'color': 'teal'},
+                {'value': 'コミュニケーション', 'label': 'コミュニケーション', 'description': 'つながりを深める', 'svg': 'chat-svgrepo-com.svg', 'color': 'cyan'},
+                {'value': '開発者ツール', 'label': '開発者ツール', 'description': '開発をもっとスマートに', 'svg': 'develop-svgrepo-com.svg', 'color': 'indigo'},
+                {'value': 'その他', 'label': 'その他', 'description': '枠に収まらないアイデア', 'svg': 'other-svgrepo-com.svg', 'color': 'gray'}
             ] %}
             {% set selected_value = selected_category or '' %}
             <div class="category-section">
@@ -69,7 +69,7 @@
                 <div class="category-selector" role="radiogroup" aria-labelledby="category-label">
                     {% for option in category_options %}
                         {% set option_id = 'category-' ~ loop.index %}
-                        <div class="category-item">
+                        <div class="category-item" data-category-color="{{ option.color }}">
                             <input
                                 type="radio"
                                 name="category"

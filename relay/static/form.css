@@ -192,9 +192,9 @@
     gap: 0.5rem;
 }
 
-.inheritance-source-title::before {
+/* .inheritance-source-title::before {
     content: "📋";
-}
+} */
 
 .inheritance-source-card {
     background: white;
