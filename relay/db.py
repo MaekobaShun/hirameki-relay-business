@@ -869,11 +869,12 @@ def update_event_statuses() -> None:
             con.commit()
 
 
-def get_ranking_by_period(period: str = 'all', limit: int = 5):
+def get_ranking_by_period(period: str = 'all', limit: int = 5, company_code: str | None = None):
     """
     期間別ランキングを取得
     period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
     limit: 取得件数
+    company_code: 会社コードでフィルタリング（Noneの場合は全社）
     """
     now = now_jst()
     
@@ -891,36 +892,69 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
         if start_date:
             # 期間指定あり（文字列形式に変換して比較）
             start_date_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
-            query = _prepare_query("""
-                SELECT 
-                    u.user_id,
-                    u.nickname,
-                    u.icon_path,
-                    COUNT(i.idea_id) as post_count
-                FROM mypage u
-                INNER JOIN ideas i ON u.user_id = i.user_id
-                WHERE i.created_at >= ?
-                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
-                ORDER BY post_count DESC, u.created_at ASC
-                LIMIT ?
-            """)
-            rows = con.execute(query, (start_date_str, limit)).fetchall()
+            if company_code:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(i.idea_id) as post_count
+                    FROM mypage u
+                    INNER JOIN ideas i ON u.user_id = i.user_id
+                    WHERE i.created_at >= ? AND u.company_code = ? AND i.company_code = ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    ORDER BY post_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (start_date_str, company_code, company_code, limit)).fetchall()
+            else:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(i.idea_id) as post_count
+                    FROM mypage u
+                    INNER JOIN ideas i ON u.user_id = i.user_id
+                    WHERE i.created_at >= ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    ORDER BY post_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (start_date_str, limit)).fetchall()
         else:
             # 全期間
-            query = _prepare_query("""
-                SELECT 
-                    u.user_id,
-                    u.nickname,
-                    u.icon_path,
-                    COUNT(i.idea_id) as post_count
-                FROM mypage u
-                LEFT JOIN ideas i ON u.user_id = i.user_id
-                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
-                HAVING COUNT(i.idea_id) > 0
-                ORDER BY post_count DESC, u.created_at ASC
-                LIMIT ?
-            """)
-            rows = con.execute(query, (limit,)).fetchall()
+            if company_code:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(i.idea_id) as post_count
+                    FROM mypage u
+                    LEFT JOIN ideas i ON u.user_id = i.user_id AND i.company_code = ?
+                    WHERE u.company_code = ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    HAVING COUNT(i.idea_id) > 0
+                    ORDER BY post_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (company_code, company_code, limit)).fetchall()
+            else:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(i.idea_id) as post_count
+                    FROM mypage u
+                    LEFT JOIN ideas i ON u.user_id = i.user_id
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    HAVING COUNT(i.idea_id) > 0
+                    ORDER BY post_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (limit,)).fetchall()
     
     rankings = []
     for rank, row in enumerate(rows, start=1):
@@ -935,11 +969,12 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
     return rankings
 
 
-def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
+def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5, company_code: str | None = None):
     """
     期間別継承数ランキングを取得
     period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
     limit: 取得件数
+    company_code: 会社コードでフィルタリング（Noneの場合は全社）
     """
     now = now_jst()
     
@@ -957,36 +992,69 @@ def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
         if start_date:
             # 期間指定あり
             start_date_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
-            query = _prepare_query("""
-                SELECT 
-                    u.user_id,
-                    u.nickname,
-                    u.icon_path,
-                    COUNT(ii.inheritance_id) as inheritance_count
-                FROM mypage u
-                INNER JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
-                WHERE ii.created_at >= ?
-                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
-                ORDER BY inheritance_count DESC, u.created_at ASC
-                LIMIT ?
-            """)
-            rows = con.execute(query, (start_date_str, limit)).fetchall()
+            if company_code:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(ii.inheritance_id) as inheritance_count
+                    FROM mypage u
+                    INNER JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                    WHERE ii.created_at >= ? AND u.company_code = ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    ORDER BY inheritance_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (start_date_str, company_code, limit)).fetchall()
+            else:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(ii.inheritance_id) as inheritance_count
+                    FROM mypage u
+                    INNER JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                    WHERE ii.created_at >= ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    ORDER BY inheritance_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (start_date_str, limit)).fetchall()
         else:
             # 全期間
-            query = _prepare_query("""
-                SELECT 
-                    u.user_id,
-                    u.nickname,
-                    u.icon_path,
-                    COUNT(ii.inheritance_id) as inheritance_count
-                FROM mypage u
-                LEFT JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
-                GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
-                HAVING COUNT(ii.inheritance_id) > 0
-                ORDER BY inheritance_count DESC, u.created_at ASC
-                LIMIT ?
-            """)
-            rows = con.execute(query, (limit,)).fetchall()
+            if company_code:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(ii.inheritance_id) as inheritance_count
+                    FROM mypage u
+                    LEFT JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                    WHERE u.company_code = ?
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    HAVING COUNT(ii.inheritance_id) > 0
+                    ORDER BY inheritance_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (company_code, limit)).fetchall()
+            else:
+                query = _prepare_query("""
+                    SELECT 
+                        u.user_id,
+                        u.nickname,
+                        u.icon_path,
+                        COUNT(ii.inheritance_id) as inheritance_count
+                    FROM mypage u
+                    LEFT JOIN idea_inheritance ii ON u.user_id = ii.child_user_id
+                    GROUP BY u.user_id, u.nickname, u.icon_path, u.created_at
+                    HAVING COUNT(ii.inheritance_id) > 0
+                    ORDER BY inheritance_count DESC, u.created_at ASC
+                    LIMIT ?
+                """)
+                rows = con.execute(query, (limit,)).fetchall()
     
     rankings = []
     for rank, row in enumerate(rows, start=1):

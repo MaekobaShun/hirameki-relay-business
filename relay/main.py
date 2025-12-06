@@ -227,6 +227,8 @@ def uploaded_file(filename):
 def index():
     user_id = session['user_id']
     user_name = session['nickname']
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
 
     # イベント状態を更新
     update_event_statuses()
@@ -281,10 +283,10 @@ def index():
     if period not in valid_periods:
         period = 'all'
     
-    # 期間別ランキングを取得（各期間トップ5）
+    # 期間別ランキングを取得（各期間トップ5、会社コードでフィルタリング）
     rankings_by_period = {}
     for p in valid_periods:
-        rankings_by_period[p] = get_ranking_by_period(p, limit=5)
+        rankings_by_period[p] = get_ranking_by_period(p, limit=5, company_code=company_code)
     
     # 現在選択中のランキング
     current_rankings = rankings_by_period[period]
@@ -646,6 +648,8 @@ def post_inheritance(idea_id):
 @login_required
 def inheritance_view(inheritance_id):
     user_id = session['user_id']
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
     
     with get_connection() as con:
         row = con.execute("""
@@ -667,8 +671,8 @@ def inheritance_view(inheritance_id):
             LEFT JOIN ideas parent_i ON ii.parent_idea_id = parent_i.idea_id
             LEFT JOIN mypage parent_u ON ii.parent_user_id = parent_u.user_id
             LEFT JOIN ideas child_i ON ii.child_idea_id = child_i.idea_id
-            WHERE ii.inheritance_id = ?
-        """, (inheritance_id,)).fetchone()
+            WHERE ii.inheritance_id = ? AND parent_i.company_code = ?
+        """, (inheritance_id, company_code)).fetchone()
         
         if not row:
             flash('継承情報が見つかりません。')
@@ -933,6 +937,8 @@ def delete_inheritance(inheritance_id):
 @login_required
 def post_view(idea_id):
     user_id = session['user_id']
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
 
     with get_connection() as con:
         row = con.execute(
@@ -949,9 +955,9 @@ def post_view(idea_id):
                 i.inheritance_flag
             FROM ideas i
             LEFT JOIN mypage u ON i.user_id = u.user_id
-            WHERE i.idea_id = ?
+            WHERE i.idea_id = ? AND i.company_code = ?
             """,
-            (idea_id,)
+            (idea_id, company_code)
         ).fetchone()
 
     if not row:
@@ -1960,18 +1966,22 @@ def mark_notifications_read():
 @login_required
 def ranking():
     """投稿数ランキングページ"""
+    user_id = session.get('user_id')
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
+    
     # 期間パラメータを取得（デフォルトは総合）
     period = request.args.get('period', 'all')
     valid_periods = ['all', 'weekly', 'monthly', 'yearly']
     if period not in valid_periods:
         period = 'all'
     
-    # 期間別ランキングを取得（制限なし、全ユーザー表示）
+    # 期間別ランキングを取得（制限なし、会社コードでフィルタリング）
     rankings_by_period = {}
     inheritance_rankings_by_period = {}
     for p in valid_periods:
-        rankings_by_period[p] = get_ranking_by_period(p, limit=1000)  # 実質的に全件取得
-        inheritance_rankings_by_period[p] = get_inheritance_ranking_by_period(p, limit=1000)
+        rankings_by_period[p] = get_ranking_by_period(p, limit=1000, company_code=company_code)
+        inheritance_rankings_by_period[p] = get_inheritance_ranking_by_period(p, limit=1000, company_code=company_code)
     
     # 現在選択中のランキング
     current_rankings = rankings_by_period[period]
