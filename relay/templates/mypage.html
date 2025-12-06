@@ -327,6 +327,10 @@
                         <div class="card-actions">
                             <a href="{{ url_for('inheritance_form', idea_id=result.idea_id) }}"
                                 class="btn-sm btn-primary" onclick="event.stopPropagation();">継承</a>
+                            <form method="post" action="{{ url_for('delete_gacha_result', result_id=result.result_id) }}"
+                                class="idea-delete-form">
+                                <button type="submit" class="btn-sm btn-danger idea-delete-button">削除</button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -376,12 +380,16 @@
                     </div>
                     <div class="card-footer">
                         <span class="card-date relative-time" data-timestamp="{{ item.created_at }}">{{ item.created_at }}</span>
-                        <div class="status-badge-wrapper">
+                        <div class="card-actions">
                             {% if item.child_idea_id %}
                             <span class="status-badge status-posted">公開済み</span>
                             {% else %}
                             <span class="status-badge status-saved">保存済み</span>
                             {% endif %}
+                            <form method="post" action="{{ url_for('delete_inheritance', inheritance_id=item.inheritance_id) }}"
+                                class="idea-delete-form">
+                                <button type="submit" class="btn-sm btn-danger idea-delete-button">削除</button>
+                            </form>
                         </div>
                     </div>
                 </div>

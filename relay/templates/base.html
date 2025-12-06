@@ -120,10 +120,25 @@
     {% include 'notification_panel.html' %}
     <script src="{{ url_for('static', filename='header.js') }}" defer></script>
     <script>
-        // 相対時間表示の共通関数
+        // 相対時間表示の共通関数（日本時間対応）
         function formatRelativeTime(dateString) {
+            // データベースから取得した時刻文字列を日本時間として解釈
+            // フォーマット: 'YYYY-MM-DD HH:MM:SS'（JSTとして保存されている）
+            let date;
+            if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)) {
+                // タイムゾーン情報がない場合、日本時間（JST, UTC+9）として解釈
+                // 時刻文字列をパースして、UTC時刻として解釈した後、JSTオフセット（+9時間）を適用
+                const [datePart, timePart] = dateString.split(' ');
+                const [year, month, day] = datePart.split('-').map(Number);
+                const [hour, minute, second] = timePart.split(':').map(Number);
+                // 日本時間をUTC時刻として扱い、9時間戻してUTCに変換
+                // データベースの時刻はJSTなので、UTCにするには9時間引く
+                date = new Date(Date.UTC(year, month - 1, day, hour - 9, minute, second || 0));
+            } else {
+                date = new Date(dateString);
+            }
+            
             const now = new Date();
-            const date = new Date(dateString);
             const diffMs = now - date;
             const diffSec = Math.floor(diffMs / 1000);
             const diffMin = Math.floor(diffSec / 60);
@@ -146,11 +161,13 @@
             else if (diffDay < 7) {
                 return diffDay + '日前';
             }
-            // 7日以降は年月日を表示
+            // 7日以降は年月日を表示（日本時間で表示）
             else {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
+                // 日本時間で表示するために、UTC時刻に9時間を加算
+                const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+                const year = jstDate.getUTCFullYear();
+                const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(jstDate.getUTCDate()).padStart(2, '0');
                 return `${year}/${month}/${day}`;
             }
         }
