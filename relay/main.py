@@ -36,6 +36,10 @@ from relay.db import (
     delete_event,
     get_ranking_by_period,
     get_inheritance_ranking_by_period,
+    get_company_code_by_user_id,
+    get_all_companies,
+    get_company,
+    create_company,
 )
 from relay.content_moderation import check_content, suggest_category, fuse_ideas
 import uuid
@@ -133,6 +137,24 @@ def login_required(view_func):
         if 'user_id' not in session:
             next_url = request.url
             return redirect(url_for('login', next=next_url))
+        return view_func(*args, **kwargs)
+
+    return wrapper
+
+
+def admin_required(view_func):
+    """管理者のみアクセス可能なデコレータ"""
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in session:
+            next_url = request.url
+            return redirect(url_for('login', next=next_url))
+        
+        admin_user_id = os.environ.get('ADMIN_USER_ID')
+        if not admin_user_id or session.get('user_id') != admin_user_id:
+            flash('このページにアクセスする権限がありません。')
+            return redirect(url_for('index'))
+        
         return view_func(*args, **kwargs)
 
     return wrapper
@@ -288,11 +310,13 @@ def form():
 @login_required
 def inheritance_form(idea_id):
     user_id = session['user_id']
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
     
     with get_connection() as con:
         idea_row = con.execute(
-            "SELECT idea_id, title, detail, category, user_id, created_at FROM ideas WHERE idea_id = ?",
-            (idea_id,)
+            "SELECT idea_id, title, detail, category, user_id, created_at FROM ideas WHERE idea_id = ? AND company_code = ?",
+            (idea_id, company_code)
         ).fetchone()
         
         if not idea_row:
@@ -525,10 +549,12 @@ def post_inheritance(idea_id):
         
         print("[継承投稿処理] AI判定を通過しました。投稿を保存します...")
 
+        # ユーザーの会社コードを取得
+        company_code = get_company_code_by_user_id(user_id) or 'test'
         # アイデアを登録
         con.execute(
-            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (child_idea_id, child_title, add_detail, child_category, user_id, created_at, True)
+            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag, company_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (child_idea_id, child_title, add_detail, child_category, user_id, created_at, True, company_code)
         )
 
         # 既存の継承レコードがある場合は更新、なければ新規作成
@@ -745,9 +771,11 @@ def post():
         created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
         # inheritance_flagはデフォルトでFalse（SQLiteの場合は0）
         inheritance_flag = False
+        # ユーザーの会社コードを取得
+        company_code = get_company_code_by_user_id(user_id) or 'test'
         con.execute(
-            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [idea_id, title, detail, category, user_id, created_at, inheritance_flag]
+            "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag, company_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [idea_id, title, detail, category, user_id, created_at, inheritance_flag, company_code]
         )
         if not using_supabase():
             con.commit()
@@ -961,7 +989,8 @@ def signup():
     form_data = {
         'user_id': request.form.get('user_id', '@').strip() if request.method == 'POST' else '@',
         'nickname': request.form.get('nickname', '').strip() if request.method == 'POST' else '',
-        'email': request.form.get('email', '').strip() if request.method == 'POST' else ''
+        'email': request.form.get('email', '').strip() if request.method == 'POST' else '',
+        'company_code': request.form.get('company_code', '').strip() if request.method == 'POST' else ''
     }
 
     if request.method == 'POST':
@@ -1011,6 +1040,16 @@ def signup():
         if existing_user:
             errors.append('このメールアドレスは既に登録されています。')
 
+        # 会社コードのバリデーション
+        company_code = request.form.get('company_code', '').strip()
+        if not company_code:
+            errors.append('会社コードを入力してください。')
+        else:
+            # 会社コードの存在チェック
+            company = get_company(company_code)
+            if not company:
+                errors.append('存在しない会社コードです。管理者に確認してください。')
+
         icon_path = None
         icon_candidate = None
         if icon_file and icon_file.filename:
@@ -1030,7 +1069,7 @@ def signup():
             user_id = raw_user_id if raw_user_id and not errors else None
             password_hash = generate_password_hash(password)
             created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
-            insert_user(user_id, nickname, password_hash, email, icon_path, created_at)
+            insert_user(user_id, nickname, password_hash, email, icon_path, created_at, company_code)
             session.clear()
             session.permanent = True
             session['user_id'] = user_id
@@ -1187,9 +1226,13 @@ def spin():
         flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
         return redirect(url_for('gacha', category=category))
 
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(current_user_id) or 'test'
+    
     item = fetch_random_item(
         exclude_user_id=current_user_id,
-        category=category
+        category=category,
+        company_code=company_code
     )
 
     if not item:
@@ -1286,36 +1329,39 @@ def fusion():
         tickets = 0
         session['tickets'] = 0
     
-    # 自分の投稿したアイデアを取得（削除されていないもののみ）
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
+    
+    # 自分の投稿したアイデアを取得（削除されていないもののみ、同じ会社のもののみ）
     with get_connection() as con:
         if using_supabase():
             posted_ideas = con.execute(
-                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND (is_deleted IS NULL OR is_deleted = FALSE) ORDER BY created_at DESC",
-                (user_id,)
+                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND company_code = ? AND (is_deleted IS NULL OR is_deleted = FALSE) ORDER BY created_at DESC",
+                (user_id, company_code)
             ).fetchall()
             
-            # ガチャで獲得したアイデアを取得（削除されていないもののみ）
+            # ガチャで獲得したアイデアを取得（削除されていないもののみ、同じ会社のもののみ）
             gacha_ideas = con.execute("""
                 SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
                 FROM ideas i
                 JOIN gacha_result gr ON i.idea_id = gr.idea_id
-                WHERE gr.user_id = ? AND (i.is_deleted IS NULL OR i.is_deleted = FALSE)
+                WHERE gr.user_id = ? AND i.company_code = ? AND (i.is_deleted IS NULL OR i.is_deleted = FALSE)
                 ORDER BY i.created_at DESC
-            """, (user_id,)).fetchall()
+            """, (user_id, company_code)).fetchall()
         else:
             posted_ideas = con.execute(
-                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC",
-                (user_id,)
+                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND company_code = ? AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC",
+                (user_id, company_code)
             ).fetchall()
             
-            # ガチャで獲得したアイデアを取得（削除されていないもののみ）
+            # ガチャで獲得したアイデアを取得（削除されていないもののみ、同じ会社のもののみ）
             gacha_ideas = con.execute("""
                 SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
                 FROM ideas i
                 JOIN gacha_result gr ON i.idea_id = gr.idea_id
-                WHERE gr.user_id = ? AND (i.is_deleted IS NULL OR i.is_deleted = 0)
+                WHERE gr.user_id = ? AND i.company_code = ? AND (i.is_deleted IS NULL OR i.is_deleted = 0)
                 ORDER BY i.created_at DESC
-            """, (user_id,)).fetchall()
+            """, (user_id, company_code)).fetchall()
     
     # アイデアを辞書形式に変換
     posted_ideas_list = []
@@ -1374,13 +1420,16 @@ def fusion_execute():
         flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
         return redirect(url_for('fusion'))
     
-    # 選択されたアイデアの情報を取得
+    # ユーザーの会社コードを取得
+    company_code = get_company_code_by_user_id(user_id) or 'test'
+    
+    # 選択されたアイデアの情報を取得（同じ会社のもののみ）
     with get_connection() as con:
         ideas_data = []
         for idea_id in selected_idea_ids:
             row = con.execute(
-                "SELECT idea_id, title, detail, category FROM ideas WHERE idea_id = ?",
-                (idea_id,)
+                "SELECT idea_id, title, detail, category FROM ideas WHERE idea_id = ? AND company_code = ?",
+                (idea_id, company_code)
             ).fetchone()
             if row:
                 ideas_data.append({
@@ -1579,9 +1628,11 @@ def fusion_post():
             # 新規アイデアを作成
             idea_id = str(uuid.uuid4())
             created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # ユーザーの会社コードを取得
+            company_code = get_company_code_by_user_id(user_id) or 'test'
             con.execute(
-                "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (idea_id, title, detail, category, user_id, created_at, False)
+                "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag, company_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (idea_id, title, detail, category, user_id, created_at, False, company_code)
             )
             
             # 融合履歴を更新
@@ -2454,3 +2505,49 @@ def event_delete(event_id):
     
     flash(f'イベント「{name}」を削除しました。')
     return redirect(url_for('events'))
+
+
+# ==================== 管理者機能 ====================
+
+@app.route('/admin/companies')
+@admin_required
+def admin_companies():
+    """管理者用会社コード管理ページ"""
+    companies = get_all_companies()
+    companies_list = []
+    for row in companies:
+        companies_list.append({
+            'company_code': row[0],
+            'company_name': row[1],
+            'created_at': row[2],
+            'created_by': row[3]
+        })
+    
+    return render_template('admin/companies.html', companies=companies_list)
+
+
+@app.route('/admin/companies/create', methods=['POST'])
+@admin_required
+def admin_create_company():
+    """会社コードを作成"""
+    user_id = session['user_id']
+    company_code = request.form.get('company_code', '').strip()
+    company_name = request.form.get('company_name', '').strip() or None
+    
+    if not company_code:
+        flash('会社コードを入力してください。')
+        return redirect(url_for('admin_companies'))
+    
+    # 会社コードの重複チェック
+    existing_company = get_company(company_code)
+    if existing_company:
+        flash('この会社コードは既に登録されています。')
+        return redirect(url_for('admin_companies'))
+    
+    try:
+        create_company(company_code, company_name, user_id)
+        flash(f'会社コード「{company_code}」を作成しました。')
+    except Exception as e:
+        flash(f'会社コードの作成に失敗しました: {str(e)}')
+    
+    return redirect(url_for('admin_companies'))

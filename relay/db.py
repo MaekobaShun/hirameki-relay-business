@@ -394,11 +394,101 @@ def create_table():
             )
         """)
 
+        # companiesテーブルを作成
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS companies (
+                company_code   VARCHAR(64) PRIMARY KEY,
+                company_name   VARCHAR(128),
+                created_at     TIMESTAMP NOT NULL,
+                created_by     VARCHAR(64) NOT NULL
+            )
+        """)
 
-def fetch_items(exclude_user_id=None, category=None, include_deleted=False):
+        # mypageテーブルにcompany_codeカラムを追加
+        if using_supabase():
+            try:
+                con.execute("ALTER TABLE mypage ADD COLUMN IF NOT EXISTS company_code VARCHAR(64)")
+            except Exception:
+                pass
+        else:
+            try:
+                con.execute("ALTER TABLE mypage ADD COLUMN company_code VARCHAR(64)")
+            except Exception:
+                pass
+
+        # 既存のmypageデータに"test"を設定
+        try:
+            con.execute("UPDATE mypage SET company_code = 'test' WHERE company_code IS NULL")
+        except Exception:
+            pass
+
+        # ideasテーブルにcompany_codeカラムを追加
+        if using_supabase():
+            try:
+                con.execute("ALTER TABLE ideas ADD COLUMN IF NOT EXISTS company_code VARCHAR(64)")
+            except Exception:
+                pass
+        else:
+            try:
+                con.execute("ALTER TABLE ideas ADD COLUMN company_code VARCHAR(64)")
+            except Exception:
+                pass
+
+        # 既存のideasデータに"test"を設定
+        try:
+            con.execute("UPDATE ideas SET company_code = 'test' WHERE company_code IS NULL")
+        except Exception:
+            pass
+
+
+# ==================== 会社コード関連の関数 ====================
+
+def get_company_code_by_user_id(user_id: str) -> str | None:
+    """ユーザーの会社コードを取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT company_code FROM mypage WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def get_all_companies():
+    """すべての会社コードを取得"""
+    with get_connection() as con:
+        rows = con.execute(
+            "SELECT company_code, company_name, created_at, created_by FROM companies ORDER BY created_at DESC"
+        ).fetchall()
+    return rows
+
+
+def get_company(company_code: str):
+    """会社コードの情報を取得"""
+    with get_connection() as con:
+        row = con.execute(
+            "SELECT company_code, company_name, created_at, created_by FROM companies WHERE company_code = ?",
+            (company_code,)
+        ).fetchone()
+    return row
+
+
+def create_company(company_code: str, company_name: str | None, created_by: str) -> None:
+    """会社コードを作成"""
+    with get_connection() as con:
+        created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
+        con.execute(
+            "INSERT INTO companies (company_code, company_name, created_at, created_by) VALUES (?, ?, ?, ?)",
+            (company_code, company_name, created_at, created_by)
+        )
+        if not using_supabase():
+            con.commit()
+
+
+def fetch_items(exclude_user_id=None, category=None, include_deleted=False, company_code=None):
     """
     アイデア一覧を取得
     include_deleted: Trueの場合は削除済みも含める（ガチャ結果や継承からの参照用）
+    company_code: 会社コードでフィルタリング
     """
     with get_connection() as con:
         query = "SELECT * FROM ideas WHERE 1=1"
@@ -419,12 +509,16 @@ def fetch_items(exclude_user_id=None, category=None, include_deleted=False):
             query += " AND category = ?"
             params.append(category)
 
+        if company_code:
+            query += " AND company_code = ?"
+            params.append(company_code)
+
         rows = con.execute(query, tuple(params)).fetchall()
     return rows
 
 
-def fetch_random_item(exclude_user_id=None, category=None):
-    items = fetch_items(exclude_user_id=exclude_user_id, category=category)
+def fetch_random_item(exclude_user_id=None, category=None, company_code=None):
+    items = fetch_items(exclude_user_id=exclude_user_id, category=category, company_code=company_code)
     if items:
         return random.choice(items)
     return None
@@ -448,27 +542,34 @@ def get_user_by_user_id(user_id: str):
     return row
 
 
-def insert_user(user_id: str, nickname: str, password_hash: str, email: str, icon_path: str | None, created_at: str) -> None:
+def insert_user(user_id: str, nickname: str, password_hash: str, email: str, icon_path: str | None, created_at: str, company_code: str | None = None) -> None:
     with get_connection() as con:
         # ticket_count カラムが存在する場合はそれを使用、なければ tickets
         try:
             con.execute(
-                "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, ticket_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (user_id, nickname, password_hash, email, icon_path, created_at, 1)
+                "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, ticket_count, company_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, nickname, password_hash, email, icon_path, created_at, 1, company_code)
             )
         except Exception:
             # ticket_count カラムが存在しない場合（後方互換性）
             try:
                 con.execute(
-                    "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, tickets) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (user_id, nickname, password_hash, email, icon_path, created_at, 1)
+                    "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, tickets, company_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (user_id, nickname, password_hash, email, icon_path, created_at, 1, company_code)
                 )
             except Exception:
                 # tickets カラムも存在しない場合
-                con.execute(
-                    "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (user_id, nickname, password_hash, email, icon_path, created_at)
-                )
+                try:
+                    con.execute(
+                        "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at, company_code) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (user_id, nickname, password_hash, email, icon_path, created_at, company_code)
+                    )
+                except Exception:
+                    # company_code カラムも存在しない場合（後方互換性）
+                    con.execute(
+                        "INSERT INTO mypage (user_id, nickname, password, email, icon_path, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                        (user_id, nickname, password_hash, email, icon_path, created_at)
+                    )
         # SQLiteの場合は明示的にコミット（SupabaseConnectionは__exit__で自動コミット）
         if not using_supabase():
             con.commit()

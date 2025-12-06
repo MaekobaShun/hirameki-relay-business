@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}会社コード管理 - ひらめきリレー{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='form.css') }}">
+<style>
+    .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .admin-header {
+        margin-bottom: 2rem;
+    }
+
+    .admin-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
+    }
+
+    .admin-header p {
+        color: #64748b;
+        font-size: 1rem;
+    }
+
+    .create-company-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+    }
+
+    .create-company-card h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .create-company-card h2::before {
+        content: "＋";
+        font-size: 1.8rem;
+        color: #f97316;
+        font-weight: 300;
+    }
+
+    .companies-section {
+        margin-top: 3rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-title::before {
+        content: "🏢";
+        font-size: 1.5rem;
+    }
+
+    .companies-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .company-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .company-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #f97316, #fb923c);
+    }
+
+    .company-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.15);
+        border-color: rgba(249, 115, 22, 0.3);
+    }
+
+    .company-code {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
+        font-family: 'Courier New', monospace;
+        letter-spacing: 0.5px;
+    }
+
+    .company-name {
+        font-size: 1rem;
+        color: #475569;
+        margin-bottom: 1rem;
+        min-height: 1.5rem;
+    }
+
+    .company-name:empty::before {
+        content: "（会社名なし）";
+        color: #94a3b8;
+        font-style: italic;
+    }
+
+    .company-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(226, 232, 240, 0.6);
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+
+    .company-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .company-meta-item::before {
+        content: "•";
+        color: #f97316;
+        font-weight: bold;
+    }
+
+    .no-companies {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: rgba(249, 250, 251, 0.8);
+        border-radius: 1rem;
+        border: 2px dashed #cbd5e1;
+        color: #64748b;
+        font-size: 1.1rem;
+    }
+
+    .no-companies::before {
+        content: "📋";
+        display: block;
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .status-message {
+        margin-bottom: 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: 0.75rem;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+        color: #16a34a;
+    }
+
+    .status-message ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+
+    .status-message li {
+        margin: 0.25rem 0;
+    }
+
+    @media (max-width: 768px) {
+        .companies-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>会社コード管理</h1>
+        <p>新しい会社コードを作成し、登録済みの会社コードを管理できます</p>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="status-message">
+                <ul>
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="create-company-card">
+        <h2>新しい会社コードを作成</h2>
+        <form method="post" action="{{ url_for('admin_create_company') }}" class="form">
+            <div class="form-group">
+                <label for="company_code">会社コード<span class="required">*</span></label>
+                <input type="text" id="company_code" name="company_code" class="form-input" required maxlength="64" placeholder="例: COMPANY001">
+                <p class="helper-text">文字列と数値の混合が可能です。</p>
+            </div>
+
+            <div class="form-group">
+                <label for="company_name">会社名（任意）</label>
+                <input type="text" id="company_name" name="company_name" class="form-input" maxlength="128" placeholder="例: 株式会社サンプル">
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">会社コードを作成</button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">キャンセル</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="companies-section">
+        <h2 class="section-title">登録済み会社コード一覧</h2>
+        {% if companies %}
+            <div class="companies-grid">
+                {% for company in companies %}
+                    <div class="company-card">
+                        <div class="company-code">{{ company.company_code }}</div>
+                        <div class="company-name">{{ company.company_name or '' }}</div>
+                        <div class="company-meta">
+                            <div class="company-meta-item">
+                                <span>作成日時: {{ company.created_at }}</span>
+                            </div>
+                            <div class="company-meta-item">
+                                <span>作成者: {{ company.created_by }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-companies">
+                登録されている会社コードはありません。<br>
+                上記のフォームから新しい会社コードを作成してください。
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

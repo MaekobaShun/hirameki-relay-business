@@ -59,6 +59,12 @@
                         <p class="helper-text">ログインIDとして利用します。受信可能なアドレスをご入力ください。</p>
                     </div>
 
+                    <div class="form-group">
+                        <label for="company_code">会社コード<span class="required">*</span></label>
+                        <input type="text" id="company_code" name="company_code" class="signup-input" value="{{ form_data.company_code }}" placeholder="会社コードを入力" required>
+                        <p class="helper-text">管理者から提供された会社コードを入力してください。</p>
+                    </div>
+
                     <div class="form-group password-toggle">
                         <label for="password">パスワード<span class="required">*</span></label>
                         <div class="password-input-wrapper">

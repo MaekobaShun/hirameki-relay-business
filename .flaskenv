@@ -1,3 +1,4 @@
 FLASK_APP=relay
 FLASK_ENV=development
 FLASK_DEBUG=1
+ADMIN_USER_ID=test
