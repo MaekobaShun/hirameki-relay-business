@@ -503,6 +503,24 @@
     margin-top: 1.5rem;
 }
 
+.fusion-save-button {
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    color: white;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(100, 116, 139, 0.4);
+}
+
+.fusion-save-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(100, 116, 139, 0.5);
+}
+
 .fusion-post-button {
     padding: 0.875rem 2rem;
     background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);

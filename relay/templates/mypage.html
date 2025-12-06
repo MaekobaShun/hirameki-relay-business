@@ -424,9 +424,12 @@
             </div>
             <div class="ideas-grid" id="fusion-ideas-grid">
                 {% for fusion in fusion_items %}
-                {% if fusion.fused_idea_id and fusion.fused_title %}
                 <div class="idea-card fusion-card" role="button" tabindex="0"
+                    {% if fusion.fused_idea_id %}
                     data-detail-url="{{ url_for('post_view', idea_id=fusion.fused_idea_id) }}"
+                    {% else %}
+                    data-detail-url="{{ url_for('fusion_result', fusion_id=fusion.fusion_id) }}"
+                    {% endif %}
                     data-category="{{ fusion.fused_category }}">
                     <div class="card-body">
                         <div class="card-header">
@@ -447,7 +450,6 @@
                         </div>
                     </div>
                 </div>
-                {% endif %}
                 {% endfor %}
             </div>
             {% endif %}

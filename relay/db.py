@@ -390,9 +390,34 @@ def create_table():
                 parent_idea_id_2   VARCHAR(64) NOT NULL,
                 parent_idea_id_3   VARCHAR(64),
                 fused_idea_id      VARCHAR(64),
+                fused_title        VARCHAR(128),
+                fused_detail       TEXT,
+                fused_category     VARCHAR(32),
                 created_at         TIMESTAMP NOT NULL
             )
         """)
+        
+        # 既存のテーブルにカラムを追加（マイグレーション）
+        if using_supabase():
+            try:
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN IF NOT EXISTS fused_title VARCHAR(128)")
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN IF NOT EXISTS fused_detail TEXT")
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN IF NOT EXISTS fused_category VARCHAR(32)")
+            except Exception:
+                pass
+        else:
+            try:
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN fused_title VARCHAR(128)")
+            except Exception:
+                pass
+            try:
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN fused_detail TEXT")
+            except Exception:
+                pass
+            try:
+                con.execute("ALTER TABLE idea_fusion ADD COLUMN fused_category VARCHAR(32)")
+            except Exception:
+                pass
 
 
 def fetch_items(exclude_user_id=None, category=None, include_deleted=False):

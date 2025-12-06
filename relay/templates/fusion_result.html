@@ -63,14 +63,20 @@
                         <p class="fused-idea-detail">{{ fusion_result.fused_detail | replace('\n', '<br>') | safe }}</p>
                         <span class="fused-idea-category">📁 {{ fusion_result.fused_category }}</span>
                         
-                        <!-- 投稿フォーム -->
-                        <form action="{{ url_for('fusion_post') }}" method="post" class="fusion-post-form">
-                            <input type="hidden" name="fusion_id" value="{{ fusion_id }}">
-                            <input type="hidden" name="title" value="{{ fusion_result.fused_title }}">
-                            <input type="hidden" name="detail" value="{{ fusion_result.fused_detail }}">
-                            <input type="hidden" name="category" value="{{ fusion_result.fused_category }}">
-                            <button type="submit" class="fusion-post-button">このアイデアを投稿する</button>
-                        </form>
+                        <!-- 保存・投稿フォーム -->
+                        <div class="fusion-post-form">
+                            <form action="{{ url_for('fusion_save') }}" method="post" style="display: inline-block; margin-right: 1rem;">
+                                <input type="hidden" name="fusion_id" value="{{ fusion_id }}">
+                                <button type="submit" class="fusion-save-button">保存する</button>
+                            </form>
+                            <form action="{{ url_for('fusion_post') }}" method="post" style="display: inline-block;">
+                                <input type="hidden" name="fusion_id" value="{{ fusion_id }}">
+                                <input type="hidden" name="title" value="{{ fusion_result.fused_title }}">
+                                <input type="hidden" name="detail" value="{{ fusion_result.fused_detail }}">
+                                <input type="hidden" name="category" value="{{ fusion_result.fused_category }}">
+                                <button type="submit" class="fusion-post-button">このアイデアを投稿する</button>
+                            </form>
+                        </div>
                     </article>
                 {% endif %}
             </div>

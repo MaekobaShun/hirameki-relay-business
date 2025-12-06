@@ -1,4 +1,5 @@
 from relay import app
+import re
 from flask import (
     render_template,
     request,
@@ -125,6 +126,38 @@ def inject_notifications():
 def calculate_text_length(text):
     """文字数を計算（日本語も1文字としてカウント）"""
     return len(text)
+
+
+def normalize_text(text):
+    """テキストの基本的な正規化処理"""
+    if not text:
+        return text
+    
+    # 1. 制御文字（改行、タブ以外）を削除
+    # 改行、タブ、スペース以外の制御文字を削除
+    text = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', text)
+    
+    # 2. タブ文字をスペースに置き換え
+    text = text.replace('\t', ' ')
+    
+    # 3. 改行の正規化
+    # すべての改行文字を統一
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # 連続する改行（2つ以上）を1つのスペースに置き換え
+    text = re.sub(r'\n{2,}', ' ', text)
+    # 単一の改行もスペースに置き換え
+    text = text.replace('\n', ' ')
+    
+    # 4. 全角スペースを半角スペースに統一
+    text = text.replace('\u3000', ' ')  # 全角スペース
+    
+    # 5. 連続するスペースを1つにまとめる
+    text = re.sub(r' {2,}', ' ', text)
+    
+    # 6. 前後の空白を削除
+    text = text.strip()
+    
+    return text
 
 
 def login_required(view_func):
@@ -332,8 +365,8 @@ def inheritance_form(idea_id):
 @login_required
 def save_inheritance(idea_id):
     user_id = session['user_id']
-    add_point = request.form.get('add_point', '').strip()
-    add_detail = request.form.get('add_detail', '').strip()
+    add_point = normalize_text(request.form.get('add_point', '').strip())
+    add_detail = normalize_text(request.form.get('add_detail', '').strip())
     parent_idea_id = request.form.get('parent_idea_id')
     parent_user_id = request.form.get('parent_user_id')
 
@@ -418,6 +451,10 @@ def post_inheritance(idea_id):
             else:
                 flash('追加したポイントを入力してください。')
                 return redirect(url_for('inheritance_form', idea_id=idea_id))
+    
+    # 改行を正規化（連続する改行や空白行を削除）
+    add_point = normalize_text(add_point)
+    add_detail = normalize_text(add_detail)
 
     if not add_point:
         flash('追加したポイントを入力してください。')
@@ -695,9 +732,13 @@ def post():
     if 'user_id' not in session:
         return redirect(url_for('login', next=url_for('form')))
 
-    title = request.form['title']
+    title = request.form['title'].strip()
     detail = request.form['detail']
     category = request.form.get('category', '').strip()
+    
+    # 改行を正規化（連続する改行や空白行を削除）
+    title = normalize_text(title)
+    detail = normalize_text(detail)
 
     # カテゴリが空の場合、AIで自動判定
     if not category:
@@ -1446,19 +1487,7 @@ def fusion_execute():
             except Exception:
                 pass
         
-        # 融合履歴を保存
-        parent_idea_id_1 = selected_idea_ids[0]
-        parent_idea_id_2 = selected_idea_ids[1]
-        parent_idea_id_3 = selected_idea_ids[2] if len(selected_idea_ids) > 2 else None
-        
-        con.execute("""
-            INSERT INTO idea_fusion 
-            (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, None, now))
-        
-        if not using_supabase():
-            con.commit()
+        # 融合実行時にはDBに保存しない（保存ボタンまたは投稿ボタンを押したときに保存）
     
     # セッションのチケット数を更新
     session['tickets'] = new_tickets
@@ -1470,7 +1499,10 @@ def fusion_execute():
         'fused_title': fused_result['title'],
         'fused_detail': fused_result['detail'],
         'fused_category': fused_result['category'],
-        'parent_ideas': ideas_data
+        'parent_ideas': ideas_data,
+        'parent_idea_id_1': selected_idea_ids[0],
+        'parent_idea_id_2': selected_idea_ids[1],
+        'parent_idea_id_3': selected_idea_ids[2] if len(selected_idea_ids) > 2 else None
     }
     
     return redirect(url_for('fusion_result', fusion_id=fusion_id))
@@ -1482,14 +1514,14 @@ def fusion_result(fusion_id):
     """融合結果表示"""
     user_id = session.get('user_id')
     
-    # セッションから融合結果を取得
-    fusion_result_data = session.pop('last_fusion_result', None)
+    # セッションから融合結果を取得（popしないで保持）
+    fusion_result_data = session.get('last_fusion_result')
     
-    if not fusion_result_data:
+    if not fusion_result_data or fusion_result_data.get('fusion_id') != fusion_id:
         # セッションにない場合はDBから取得
         with get_connection() as con:
             fusion_row = con.execute(
-                "SELECT fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, created_at FROM idea_fusion WHERE fusion_id = ?",
+                "SELECT fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, fused_title, fused_detail, fused_category, created_at FROM idea_fusion WHERE fusion_id = ?",
                 (fusion_id,)
             ).fetchone()
             
@@ -1532,7 +1564,10 @@ def fusion_result(fusion_id):
                 'fusion_id': fusion_id,
                 'parent_ideas': parent_ideas,
                 'fused_idea': fused_idea,
-                'created_at': fusion_row[6]
+                'fused_title': fusion_row[6] if len(fusion_row) > 6 else None,
+                'fused_detail': fusion_row[7] if len(fusion_row) > 7 else None,
+                'fused_category': fusion_row[8] if len(fusion_row) > 8 else None,
+                'created_at': fusion_row[9] if len(fusion_row) > 9 else None
             }
     
     return render_template(
@@ -1540,6 +1575,59 @@ def fusion_result(fusion_id):
         fusion_id=fusion_id,
         fusion_result=fusion_result_data
     )
+
+
+@app.route('/fusion/save', methods=['POST'])
+@login_required
+def fusion_save():
+    """融合結果を保存（投稿はしない）"""
+    user_id = session.get('user_id')
+    fusion_id = request.form.get('fusion_id')
+    
+    if not fusion_id:
+        flash('融合IDが見つかりませんでした。')
+        return redirect(url_for('fusion'))
+    
+    # セッションから融合結果を取得
+    fusion_result_data = session.get('last_fusion_result')
+    
+    if not fusion_result_data or fusion_result_data.get('fusion_id') != fusion_id:
+        flash('融合結果が見つかりませんでした。')
+        return redirect(url_for('fusion'))
+    
+    # 融合履歴をDBに保存
+    now = now_jst().strftime('%Y-%m-%d %H:%M:%S')
+    with get_connection() as con:
+        # 既に保存されているか確認
+        existing = con.execute(
+            "SELECT fusion_id FROM idea_fusion WHERE fusion_id = ?",
+            (fusion_id,)
+        ).fetchone()
+        
+        if not existing:
+            # 新規保存
+            con.execute("""
+                INSERT INTO idea_fusion 
+                (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, fused_title, fused_detail, fused_category, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                fusion_id,
+                user_id,
+                fusion_result_data.get('parent_idea_id_1'),
+                fusion_result_data.get('parent_idea_id_2'),
+                fusion_result_data.get('parent_idea_id_3'),
+                None,
+                fusion_result_data.get('fused_title'),
+                fusion_result_data.get('fused_detail'),
+                fusion_result_data.get('fused_category'),
+                now
+            ))
+            
+            if not using_supabase():
+                con.commit()
+    
+    flash('融合結果を保存しました！')
+    return redirect(url_for('mypage'))
 
 
 @app.route('/fusion/post', methods=['POST'])
@@ -1552,43 +1640,73 @@ def fusion_post():
     detail = request.form.get('detail', '').strip()
     category = request.form.get('category', '').strip()
     
+    # 改行を正規化（連続する改行や空白行を削除）
+    title = normalize_text(title)
+    detail = normalize_text(detail)
+    
     if not fusion_id or not title or not detail or not category:
         flash('すべての項目を入力してください。')
         return redirect(url_for('fusion_result', fusion_id=fusion_id))
     
-    # 融合履歴を確認
+    # セッションから融合結果を取得（親アイデアID用）
+    fusion_result_data = session.get('last_fusion_result', {})
+    
     with get_connection() as con:
+        # 融合履歴が既に保存されているか確認
         fusion_row = con.execute(
             "SELECT user_id, fused_idea_id FROM idea_fusion WHERE fusion_id = ?",
             (fusion_id,)
         ).fetchone()
         
-        if not fusion_row or fusion_row[0] != user_id:
-            flash('融合結果が見つかりませんでした。')
-            return redirect(url_for('fusion'))
-        
         # 既に投稿されている場合は更新、そうでなければ新規作成
-        if fusion_row[1]:
+        if fusion_row and fusion_row[1]:
             # 既存のアイデアを更新
             con.execute(
                 "UPDATE ideas SET title = ?, detail = ?, category = ? WHERE idea_id = ?",
                 (title, detail, category, fusion_row[1])
             )
             idea_id = fusion_row[1]
-        else:
-            # 新規アイデアを作成
-            idea_id = str(uuid.uuid4())
-            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            con.execute(
-                "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (idea_id, title, detail, category, user_id, created_at, False)
-            )
             
             # 融合履歴を更新
             con.execute(
                 "UPDATE idea_fusion SET fused_idea_id = ? WHERE fusion_id = ?",
                 (idea_id, fusion_id)
             )
+        else:
+            # 新規アイデアを作成
+            idea_id = str(uuid.uuid4())
+            created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
+            con.execute(
+                "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (idea_id, title, detail, category, user_id, created_at, False)
+            )
+            
+            # 融合履歴を保存または更新
+            if fusion_row:
+                # 既存の融合履歴を更新
+                con.execute(
+                    "UPDATE idea_fusion SET fused_idea_id = ? WHERE fusion_id = ?",
+                    (idea_id, fusion_id)
+                )
+            else:
+                # 新規に融合履歴を作成
+                now = now_jst().strftime('%Y-%m-%d %H:%M:%S')
+                con.execute("""
+                    INSERT INTO idea_fusion 
+                    (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, fused_title, fused_detail, fused_category, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    fusion_id,
+                    user_id,
+                    fusion_result_data.get('parent_idea_id_1'),
+                    fusion_result_data.get('parent_idea_id_2'),
+                    fusion_result_data.get('parent_idea_id_3'),
+                    idea_id,
+                    title,
+                    detail,
+                    category,
+                    now
+                ))
         
         if not using_supabase():
             con.commit()
@@ -1768,7 +1886,7 @@ def mypage():
             ORDER BY ii.created_at DESC
         """, (user_id,)).fetchall()
 
-        # 融合履歴を取得
+        # 融合履歴を取得（保存済みのもののみ表示）
         fusion_rows = con.execute("""
             SELECT 
                 if.fusion_id,
@@ -1777,9 +1895,9 @@ def mypage():
                 if.parent_idea_id_3,
                 if.fused_idea_id,
                 if.created_at,
-                fused_i.title as fused_title,
-                fused_i.detail as fused_detail,
-                fused_i.category as fused_category
+                COALESCE(fused_i.title, if.fused_title) as fused_title,
+                COALESCE(fused_i.detail, if.fused_detail) as fused_detail,
+                COALESCE(fused_i.category, if.fused_category) as fused_category
             FROM idea_fusion if
             LEFT JOIN ideas fused_i ON if.fused_idea_id = fused_i.idea_id
             WHERE if.user_id = ?
@@ -1847,20 +1965,55 @@ def mypage():
             'parent_is_deleted': parent_is_deleted
         })
 
-    # 融合履歴
+    # 融合履歴（表示可能なもののみ）
     fusion_items = []
     for row in fusion_rows:
-        fusion_items.append({
-            'fusion_id': row[0],
-            'parent_idea_id_1': row[1],
-            'parent_idea_id_2': row[2],
-            'parent_idea_id_3': row[3],
-            'fused_idea_id': row[4],
-            'created_at': row[5],
-            'fused_title': row[6],
-            'fused_detail': row[7],
-            'fused_category': row[8]
-        })
+        # カラム数に応じて適切に取得（マイグレーション前後でカラム数が異なる可能性がある）
+        fused_idea_id = row[4]
+        fused_title = row[6] if len(row) > 6 else None
+        fused_detail = row[7] if len(row) > 7 else None
+        fused_category = row[8] if len(row) > 8 else None
+        
+        # 融合結果がNULLの場合は、親アイデアから情報を取得する試み
+        if not fused_title or not fused_detail or not fused_category:
+            # 親アイデアの情報を取得して表示用のタイトルを生成
+            # 同じコネクションを使用して親アイデアを取得
+            try:
+                parent_titles = []
+                for parent_id in [row[1], row[2], row[3]]:
+                    if parent_id:
+                        parent_row = con.execute(
+                            "SELECT title FROM ideas WHERE idea_id = ?",
+                            (parent_id,)
+                        ).fetchone()
+                        if parent_row:
+                            parent_titles.append(parent_row[0])
+                
+                if not fused_title:
+                    fused_title = f"融合: {', '.join(parent_titles[:2])}" + (f" など" if len(parent_titles) > 2 else "")
+                if not fused_detail:
+                    fused_detail = "融合結果の詳細情報がありません。"
+                if not fused_category:
+                    fused_category = "その他"
+            except Exception as e:
+                print(f"[MyPage] 融合履歴の補完中にエラー: {e}")
+                if not fused_title: fused_title = "融合アイデア"
+                if not fused_detail: fused_detail = "詳細不明"
+                if not fused_category: fused_category = "その他"
+        
+        # 表示条件: fused_title が存在する場合に表示（保存済みまたは投稿済み）
+        if fused_title:
+            fusion_items.append({
+                'fusion_id': row[0],
+                'parent_idea_id_1': row[1],
+                'parent_idea_id_2': row[2],
+                'parent_idea_id_3': row[3],
+                'fused_idea_id': fused_idea_id,
+                'created_at': row[5],
+                'fused_title': fused_title,
+                'fused_detail': fused_detail,
+                'fused_category': fused_category
+            })
 
     return render_template(
         'mypage.html',
