@@ -62,9 +62,9 @@
             </div>
 
             <div class="form-group">
-                <label for="add_detail">詳細（任意）</label>
+                <label for="add_detail">詳細（任意：改善点、追加機能、具体的な実装方法など）</label>
                 <textarea name="add_detail" id="add_detail" class="form-textarea"
-                    placeholder="追加したポイントの詳細や、改善内容を記入してください（任意）" rows="6">{{ idea.saved_add_detail }}</textarea>
+                    placeholder="例：具体的な改善点、追加したい機能、実装方法、技術的な詳細など。このアイデアをどのように発展させるか記入してください。" rows="6">{{ idea.saved_add_detail }}</textarea>
                 <div class="character-counter">
                     <span id="add-detail-count">0/500</span>
                 </div>
@@ -99,36 +99,16 @@
             }
         ];
 
-        const getCharLength = (char) => {
-            if (/^[\u0000-\u007F]$/.test(char)) {
-                return 1;
-            }
-            if (/^[\uFF61-\uFF9F]$/.test(char)) {
-                return 1;
-            }
-            return 2;
-        };
-
+        // 文字数を計算（日本語も1文字としてカウント）
         const calculateLength = (text) => {
-            let length = 0;
-            for (const ch of text) {
-                length += getCharLength(ch);
-            }
-            return length;
+            return text.length;
         };
 
         const truncateToLimit = (text, limit) => {
-            let length = 0;
-            let result = '';
-            for (const ch of text) {
-                const charLength = getCharLength(ch);
-                if (length + charLength > limit) {
-                    break;
-                }
-                length += charLength;
-                result += ch;
+            if (text.length > limit) {
+                return text.substring(0, limit);
             }
-            return result;
+            return text;
         };
 
         const updateCounter = (field) => {
