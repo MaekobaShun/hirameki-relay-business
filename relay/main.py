@@ -40,6 +40,7 @@ from relay.db import (
 from relay.content_moderation import check_content
 import uuid
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import unicodedata
 import os
 from urllib.parse import urlparse
@@ -54,6 +55,14 @@ MAX_NICKNAME_LENGTH = 32
 
 MAX_TITLE_LENGTH = 60
 MAX_POST_LENGTH = 280
+
+# 日本時間（JST）を取得するヘルパー関数
+JST = ZoneInfo('Asia/Tokyo')
+
+def now_jst():
+    """現在時刻を日本時間（JST）で返す（タイムゾーン情報なし）"""
+    # データベースの日時と比較するため、タイムゾーン情報を削除
+    return datetime.now(JST).replace(tzinfo=None)
 
 
 @app.context_processor
@@ -235,7 +244,7 @@ def index():
                     continue
 
         # 残り日数を計算（終了日までの日数）
-        now = datetime.now()
+        now = now_jst()
         remaining_days = (end_date - now).days
         if remaining_days < 0:
             remaining_days = 0
@@ -349,7 +358,7 @@ def save_inheritance(idea_id):
         ).fetchone()
 
         inheritance_id = str(uuid.uuid4())
-        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
 
         if existing:
             # 既存のレコードを更新
@@ -442,7 +451,7 @@ def post_inheritance(idea_id):
 
         # 新しいアイデアを作成（継承元の情報をベースに）
         child_idea_id = str(uuid.uuid4())
-        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
         
         # タイトルと詳細を継承元から取得（必要に応じて編集可能にする場合は変更）
         child_title = parent_idea[0]  # 親のタイトルを使用
@@ -499,7 +508,7 @@ def post_inheritance(idea_id):
     
     # イベント中に投稿した場合、イベントに関連付ける
     active_events = get_active_events()
-    now = datetime.now()
+    now = now_jst()
     for event_row in active_events:
         # is_publicカラムが追加されたため9カラム
         event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e, is_public_e = event_row
@@ -647,7 +656,7 @@ def post():
     with get_connection() as con:
         idea_id = str(uuid.uuid4())
         user_id = session['user_id']
-        created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
         # inheritance_flagはデフォルトでFalse（SQLiteの場合は0）
         inheritance_flag = False
         con.execute(
@@ -659,7 +668,7 @@ def post():
     
     # イベント中に投稿した場合、イベントに関連付ける
     active_events = get_active_events()
-    now = datetime.now()
+    now = now_jst()
     for event_row in active_events:
         # is_publicカラムが追加されたため9カラム
         event_id_e, name_e, password_hash_e, start_date_e, end_date_e, created_at_e, created_by_e, status_e, is_public_e = event_row
@@ -724,7 +733,7 @@ def delete_idea(idea_id):
     with get_connection() as con:
         cur = con.cursor()
         idea_row = cur.execute(
-            "SELECT user_id FROM ideas WHERE idea_id = ?",
+            "SELECT user_id, is_deleted FROM ideas WHERE idea_id = ?",
             (idea_id,)
         ).fetchone()
 
@@ -732,11 +741,77 @@ def delete_idea(idea_id):
             flash('指定した投稿を削除できません。')
             return redirect(url_for('mypage'))
 
-        cur.execute("DELETE FROM gacha_result WHERE idea_id = ?", (idea_id,))
-        cur.execute("DELETE FROM ideas WHERE idea_id = ?", (idea_id,))
-        con.commit()
+        # 既に削除済みの場合
+        if idea_row[1]:
+            flash('この投稿は既に削除されています。')
+            return redirect(url_for('mypage'))
+
+        # 論理削除（is_deletedフラグを立てる）
+        if using_supabase():
+            cur.execute("UPDATE ideas SET is_deleted = TRUE WHERE idea_id = ?", (idea_id,))
+        else:
+            cur.execute("UPDATE ideas SET is_deleted = 1 WHERE idea_id = ?", (idea_id,))
+        
+        if not using_supabase():
+            con.commit()
 
     flash('投稿を削除しました。')
+    return redirect(url_for('mypage'))
+
+
+@app.route('/gacha/<result_id>/delete', methods=['POST'])
+@login_required
+def delete_gacha_result(result_id):
+    """ガチャで引いたアイデアを履歴から削除"""
+    user_id = session['user_id']
+
+    with get_connection() as con:
+        cur = con.cursor()
+        # 自分のガチャ結果か確認
+        result_row = cur.execute(
+            "SELECT user_id FROM gacha_result WHERE result_id = ?",
+            (result_id,)
+        ).fetchone()
+
+        if not result_row or result_row[0] != user_id:
+            flash('指定したガチャ結果を削除できません。')
+            return redirect(url_for('mypage'))
+
+        # ガチャ結果を削除
+        cur.execute("DELETE FROM gacha_result WHERE result_id = ?", (result_id,))
+        
+        if not using_supabase():
+            con.commit()
+
+    flash('ガチャ履歴から削除しました。')
+    return redirect(url_for('mypage'))
+
+
+@app.route('/inheritance/<inheritance_id>/delete', methods=['POST'])
+@login_required
+def delete_inheritance(inheritance_id):
+    """継承したアイデアを履歴から削除"""
+    user_id = session['user_id']
+
+    with get_connection() as con:
+        cur = con.cursor()
+        # 自分の継承か確認
+        inheritance_row = cur.execute(
+            "SELECT child_user_id FROM idea_inheritance WHERE inheritance_id = ?",
+            (inheritance_id,)
+        ).fetchone()
+
+        if not inheritance_row or inheritance_row[0] != user_id:
+            flash('指定した継承を削除できません。')
+            return redirect(url_for('mypage'))
+
+        # 継承を削除
+        cur.execute("DELETE FROM idea_inheritance WHERE inheritance_id = ?", (inheritance_id,))
+        
+        if not using_supabase():
+            con.commit()
+
+    flash('継承履歴から削除しました。')
     return redirect(url_for('mypage'))
 
 
@@ -868,7 +943,7 @@ def signup():
 
             user_id = raw_user_id if raw_user_id and not errors else None
             password_hash = generate_password_hash(password)
-            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            created_at = now_jst().strftime('%Y-%m-%d %H:%M:%S')
             insert_user(user_id, nickname, password_hash, email, icon_path, created_at)
             session.clear()
             session.permanent = True
@@ -1038,7 +1113,7 @@ def spin():
 
     idea_id = item[0]
     author_id = item[4]
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = now_jst().strftime('%Y-%m-%d %H:%M:%S')
 
     # トランザクション内でチケットを消費してガチャ結果を保存
     with get_connection() as con:
@@ -1194,13 +1269,15 @@ def mypage():
             'created_at': user_row[4]
         }
 
+        # 自分の投稿一覧（削除済みも含む、削除済みフラグ付き）
         idea_rows = con.execute(
-            "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? ORDER BY created_at DESC",
+            "SELECT idea_id, title, detail, category, created_at, is_deleted FROM ideas WHERE user_id = ? ORDER BY created_at DESC",
             (user_id,)
         ).fetchall()
 
+        # ガチャ結果（削除済みアイデアも含む、削除済みフラグ付き）
         gacha_rows = con.execute("""
-            SELECT gr.result_id, gr.created_at, i.idea_id, i.title, i.detail, i.category
+            SELECT gr.result_id, gr.created_at, i.idea_id, i.title, i.detail, i.category, i.is_deleted
             FROM gacha_result gr
             JOIN ideas i ON gr.idea_id = i.idea_id
             WHERE gr.user_id = ?
@@ -1223,6 +1300,7 @@ def mypage():
             ORDER BY rn.created_at DESC
         """, (user_id,)).fetchall()
 
+        # 継承一覧（削除済みアイデアも含む、削除済みフラグ付き）
         inheritance_rows = con.execute("""
             SELECT 
                 ii.inheritance_id,
@@ -1237,7 +1315,8 @@ def mypage():
                 parent_u.nickname as parent_nickname,
                 child_i.title as child_title,
                 child_i.detail as child_detail,
-                child_i.category as child_category
+                child_i.category as child_category,
+                parent_i.is_deleted as parent_is_deleted
             FROM idea_inheritance ii
             LEFT JOIN ideas parent_i ON ii.parent_idea_id = parent_i.idea_id
             LEFT JOIN mypage parent_u ON ii.parent_user_id = parent_u.user_id
@@ -1246,25 +1325,32 @@ def mypage():
             ORDER BY ii.created_at DESC
         """, (user_id,)).fetchall()
 
+    # 自分の投稿一覧（削除済みは非表示）
     ideas = []
     for row in idea_rows:
-        ideas.append({
-            'idea_id': row[0],
-            'title': row[1],
-            'detail': row[2],
-            'category': row[3],
-            'created_at': row[4]
-        })
+        is_deleted = bool(row[5]) if row[5] is not None else False
+        if not is_deleted:  # 削除済みでないものだけ表示
+            ideas.append({
+                'idea_id': row[0],
+                'title': row[1],
+                'detail': row[2],
+                'category': row[3],
+                'created_at': row[4],
+                'is_deleted': is_deleted
+            })
 
+    # ガチャ結果（削除済みも表示）
     gacha_results = []
     for row in gacha_rows:
+        is_deleted = bool(row[6]) if row[6] is not None else False
         gacha_results.append({
             'result_id': row[0],
             'created_at': row[1],
             'idea_id': row[2],
             'idea_title': row[3],
             'detail': row[4],
-            'category': row[5]
+            'category': row[5],
+            'is_deleted': is_deleted
         })
 
     revival_notifications = []
@@ -1279,8 +1365,10 @@ def mypage():
             'category': row[6]
         })
 
+    # 継承一覧（削除済みも表示）
     inheritance_items = []
     for row in inheritance_rows:
+        parent_is_deleted = bool(row[13]) if len(row) > 13 and row[13] is not None else False
         inheritance_items.append({
             'inheritance_id': row[0],
             'parent_idea_id': row[1],
@@ -1294,7 +1382,8 @@ def mypage():
             'parent_nickname': row[9] if row[9] else '不明なユーザー',
             'child_title': row[10],
             'child_detail': row[11],
-            'child_category': row[12]
+            'child_category': row[12],
+            'parent_is_deleted': parent_is_deleted
         })
 
     return render_template(
@@ -1317,7 +1406,7 @@ def mark_notifications_read():
     
     with get_connection() as con:
         # 該当ユーザーの全未読通知を既読状態に更新
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = now_jst().strftime('%Y-%m-%d %H:%M:%S')
         con.execute("""
             UPDATE revival_notify 
             SET read_at = ? 
@@ -1838,7 +1927,7 @@ def event_edit(event_id):
             try:
                 start_date = datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                start_date = datetime.now()
+                start_date = now_jst()
     if isinstance(end_date, str):
         try:
             end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
@@ -1846,7 +1935,7 @@ def event_edit(event_id):
             try:
                 end_date = datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                end_date = datetime.now()
+                end_date = now_jst()
     
     # datetime-localフォーマットに変換
     start_date_str = start_date.strftime('%Y-%m-%dT%H:%M')

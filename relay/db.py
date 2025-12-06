@@ -1,6 +1,15 @@
 import os
 import random
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# 日本時間（JST）を取得するヘルパー関数
+JST = ZoneInfo('Asia/Tokyo')
+
+def now_jst():
+    """現在時刻を日本時間（JST）で返す（タイムゾーン情報なし）"""
+    # データベースの日時と比較するため、タイムゾーン情報を削除
+    return datetime.now(JST).replace(tzinfo=None)
 
 USE_SUPABASE = bool(
     os.environ.get('SUPABASE_DATABASE_URL')
@@ -154,6 +163,15 @@ def create_table():
         else:
             try:
                 con.execute("ALTER TABLE ideas ADD COLUMN inheritance_flag INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
+        # Add is_deleted column to ideas table (論理削除用)
+        if using_supabase():
+            con.execute("ALTER TABLE ideas ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE")
+        else:
+            try:
+                con.execute("ALTER TABLE ideas ADD COLUMN is_deleted INTEGER DEFAULT 0")
             except Exception:
                 pass
 
@@ -364,10 +382,21 @@ def create_table():
         """)
 
 
-def fetch_items(exclude_user_id=None, category=None):
+def fetch_items(exclude_user_id=None, category=None, include_deleted=False):
+    """
+    アイデア一覧を取得
+    include_deleted: Trueの場合は削除済みも含める（ガチャ結果や継承からの参照用）
+    """
     with get_connection() as con:
         query = "SELECT * FROM ideas WHERE 1=1"
         params = []
+
+        # 削除済みを除外（デフォルト）
+        if not include_deleted:
+            if using_supabase():
+                query += " AND (is_deleted IS NULL OR is_deleted = FALSE)"
+            else:
+                query += " AND (is_deleted IS NULL OR is_deleted = 0)"
 
         if exclude_user_id:
             query += " AND user_id != ?"
@@ -477,7 +506,7 @@ def get_gacha_count(idea_id: str) -> int:
 
 def get_event_status(start_date: datetime, end_date: datetime) -> str:
     """イベントの状態を取得（upcoming, active, ended）"""
-    now = datetime.now()
+    now = now_jst()
     if now < start_date:
         return 'upcoming'
     elif now > end_date:
@@ -492,7 +521,7 @@ def create_event(event_id: str, name: str, password_hash: str, start_date: datet
         status = get_event_status(start_date, end_date)
         con.execute(
             "INSERT INTO events (event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, name, password_hash, start_date, end_date, datetime.now(), created_by, status, is_public)
+            (event_id, name, password_hash, start_date, end_date, now_jst(), created_by, status, is_public)
         )
         if not using_supabase():
             con.commit()
@@ -532,7 +561,7 @@ def get_public_events():
 
 def get_active_events():
     """開催中のイベントを取得（status='active'のみ）"""
-    now = datetime.now()
+    now = now_jst()
     with get_connection() as con:
         rows = con.execute(
             "SELECT event_id, name, password_hash, start_date, end_date, created_at, created_by, status, is_public FROM events WHERE start_date <= ? AND end_date >= ? AND status = 'active' ORDER BY start_date DESC",
@@ -610,7 +639,7 @@ def join_event(event_id: str, user_id: str) -> bool:
         
         con.execute(
             "INSERT INTO event_participants (event_id, user_id, joined_at) VALUES (?, ?, ?)",
-            (event_id, user_id, datetime.now())
+            (event_id, user_id, now_jst())
         )
         if not using_supabase():
             con.commit()
@@ -702,7 +731,7 @@ def _parse_datetime(date_value):
             except ValueError:
                 continue
         # パースに失敗した場合は現在時刻を返す
-        return datetime.now()
+        return now_jst()
     return date_value
 
 
@@ -712,7 +741,7 @@ def update_event_statuses() -> None:
         events = con.execute(
             "SELECT event_id, start_date, end_date FROM events"
         ).fetchall()
-        now = datetime.now()
+        now = now_jst()
         for event_id, start_date, end_date in events:
             # 文字列の場合はdatetimeオブジェクトに変換
             start_date = _parse_datetime(start_date)
@@ -732,7 +761,7 @@ def get_ranking_by_period(period: str = 'all', limit: int = 5):
     period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
     limit: 取得件数
     """
-    now = datetime.now()
+    now = now_jst()
     
     # 期間に応じた開始日を計算
     if period == 'weekly':
@@ -798,7 +827,7 @@ def get_inheritance_ranking_by_period(period: str = 'all', limit: int = 5):
     period: 'all' (総合), 'weekly' (週間), 'monthly' (月間), 'yearly' (年間)
     limit: 取得件数
     """
-    now = datetime.now()
+    now = now_jst()
     
     # 期間に応じた開始日を計算
     if period == 'weekly':
