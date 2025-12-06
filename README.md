@@ -28,8 +28,8 @@ Flask + Supabase (PostgreSQL) をバックエンドに、Cloudinary でユーザ
 ### 1. リポジトリの取得
 
 ```bash
-git clone https://github.com/your-org/hackathon-vol14.git
-cd hackathon-vol14
+git clone https://github.com/nanakorobiyaoki2025/hirameki-relay-business.git
+cd hirameki-relay-business
 ```
 
 ### 2. Python 環境の準備
