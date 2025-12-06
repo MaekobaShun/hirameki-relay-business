@@ -24,34 +24,41 @@
         <form method="post" action="{{ url_for('post') }}" class="idea-form">
             <div class="form-group">
                 <label for="title">タイトル</label>
-                <input type="text" id="title" name="title" class="form-input" placeholder="アイデアのタイトルを入力" required>
+                <input type="text" id="title" name="title" class="form-input" placeholder="アイデアのタイトルを入力" required value="{{ form_data.title if form_data else '' }}">
                 <div class="character-counter">
                     <span id="title-count">0/60</span>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="detail">詳細</label>
-                <textarea name="detail" id="detail" class="form-textarea" placeholder="アイデアの詳細を入力してください"
-                    required></textarea>
+                <label for="detail">詳細（解決したい課題、具体的な機能、期待する効果など）</label>
+                <textarea name="detail" id="detail" class="form-textarea" placeholder="例：誰が、どのような場面で、どのような問題を抱えているか。このアイデアでどのように解決するか。具体的な機能や特徴など"
+                    required>{{ form_data.detail if form_data else '' }}</textarea>
                 <div class="character-counter">
-                    <span id="detail-count">0/280</span>
+                    <span id="detail-count">0/500</span>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="category">カテゴリ</label>
-                <select name="category" id="category" class="form-select" required>
-                    <option value="">カテゴリを選択してください</option>
-                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
-                    <option value="教育">教育</option>
-                    <option value="エンタメ">エンタメ</option>
-                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
-                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
-                    <option value="コミュニケーション">コミュニケーション</option>
-                    <option value="開発者ツール">開発者ツール</option>
-                    <option value="その他">その他</option>
-                </select>
+                <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                    <select name="category" id="category" class="form-select" required style="flex: 1;">
+                        <option value="">カテゴリを選択してください</option>
+                        <option value="ビジネス・業務効率化" {% if form_data and form_data.category == 'ビジネス・業務効率化' %}selected{% endif %}>ビジネス・業務効率化</option>
+                        <option value="教育" {% if form_data and form_data.category == '教育' %}selected{% endif %}>教育</option>
+                        <option value="エンタメ" {% if form_data and form_data.category == 'エンタメ' %}selected{% endif %}>エンタメ</option>
+                        <option value="クリエイティブ・創作支援" {% if form_data and form_data.category == 'クリエイティブ・創作支援' %}selected{% endif %}>クリエイティブ・創作支援</option>
+                        <option value="生活・ライフスタイル" {% if form_data and form_data.category == '生活・ライフスタイル' %}selected{% endif %}>生活・ライフスタイル</option>
+                        <option value="コミュニケーション" {% if form_data and form_data.category == 'コミュニケーション' %}selected{% endif %}>コミュニケーション</option>
+                        <option value="開発者ツール" {% if form_data and form_data.category == '開発者ツール' %}selected{% endif %}>開発者ツール</option>
+                        <option value="その他" {% if form_data and form_data.category == 'その他' %}selected{% endif %}>その他</option>
+                    </select>
+                    <button type="button" id="category-suggest-btn" class="category-suggest-button" style="padding: 0.95rem 1.5rem; border-radius: 1rem; border: 1.5px solid rgba(129, 140, 248, 0.8); background: rgba(243, 244, 255, 0.8); color: #6366f1; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.25s ease; font-size: 0.95rem;">
+                        <span id="category-suggest-text">🤖 自動判定</span>
+                        <span id="category-suggest-loading" style="display: none;">判定中...</span>
+                    </button>
+                </div>
+                <p id="category-suggest-message" style="font-size: 0.85rem; color: #6b7280; margin-top: 0.5rem; min-height: 1.2rem;"></p>
             </div>
 
             <div class="form-actions">
@@ -75,40 +82,20 @@
             {
                 element: document.querySelector('textarea[name="detail"]'),
                 counter: document.getElementById('detail-count'),
-                limit: 280
+                limit: 500
             }
         ];
 
-        const getCharLength = (char) => {
-            if (/^[\u0000-\u007F]$/.test(char)) {
-                return 1;
-            }
-            if (/^[\uFF61-\uFF9F]$/.test(char)) {
-                return 1;
-            }
-            return 2;
-        };
-
+        // 文字数を計算（日本語も1文字としてカウント）
         const calculateLength = (text) => {
-            let length = 0;
-            for (const ch of text) {
-                length += getCharLength(ch);
-            }
-            return length;
+            return text.length;
         };
 
         const truncateToLimit = (text, limit) => {
-            let length = 0;
-            let result = '';
-            for (const ch of text) {
-                const charLength = getCharLength(ch);
-                if (length + charLength > limit) {
-                    break;
-                }
-                length += charLength;
-                result += ch;
+            if (text.length > limit) {
+                return text.substring(0, limit);
             }
-            return result;
+            return text;
         };
 
         const updateCounter = (field) => {
@@ -136,6 +123,99 @@
             field.element.addEventListener('input', () => updateCounter(field));
             updateCounter(field);
         });
+
+        // カテゴリ自動判定ボタンの処理
+        const categorySuggestBtn = document.getElementById('category-suggest-btn');
+        const categorySelect = document.getElementById('category');
+        const categorySuggestText = document.getElementById('category-suggest-text');
+        const categorySuggestLoading = document.getElementById('category-suggest-loading');
+        const categorySuggestMessage = document.getElementById('category-suggest-message');
+        const titleInput = document.querySelector('input[name="title"]');
+        const detailTextarea = document.querySelector('textarea[name="detail"]');
+
+        // ボタンのホバー効果
+        if (categorySuggestBtn) {
+            categorySuggestBtn.addEventListener('mouseenter', function() {
+                if (!this.disabled) {
+                    this.style.background = 'rgba(129, 140, 248, 0.15)';
+                    this.style.borderColor = 'rgba(99, 102, 241, 0.9)';
+                    this.style.transform = 'translateY(-2px)';
+                }
+            });
+            categorySuggestBtn.addEventListener('mouseleave', function() {
+                if (!this.disabled) {
+                    this.style.background = 'rgba(243, 244, 255, 0.8)';
+                    this.style.borderColor = 'rgba(129, 140, 248, 0.8)';
+                    this.style.transform = 'translateY(0)';
+                }
+            });
+            categorySuggestBtn.addEventListener('mousedown', function() {
+                if (!this.disabled) {
+                    this.style.transform = 'translateY(0)';
+                }
+            });
+        }
+
+        if (categorySuggestBtn && categorySelect) {
+            categorySuggestBtn.addEventListener('click', async function() {
+                const title = titleInput.value.trim();
+                const detail = detailTextarea.value.trim();
+
+                if (!title || !detail) {
+                    categorySuggestMessage.textContent = 'タイトルと詳細を入力してください';
+                    categorySuggestMessage.style.color = '#ef4444';
+                    return;
+                }
+
+                // ボタンを無効化してローディング表示
+                categorySuggestBtn.disabled = true;
+                categorySuggestBtn.style.opacity = '0.6';
+                categorySuggestBtn.style.cursor = 'not-allowed';
+                categorySuggestText.style.display = 'none';
+                categorySuggestLoading.style.display = 'inline';
+                categorySuggestMessage.textContent = '';
+                categorySuggestMessage.style.color = '#6b7280';
+
+                try {
+                    const response = await fetch('/api/suggest-category', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: title,
+                            detail: detail
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.category) {
+                        // 判定結果をセレクトボックスに反映
+                        categorySelect.value = data.category;
+                        categorySuggestMessage.textContent = `カテゴリを「${data.category}」に自動判定しました`;
+                        categorySuggestMessage.style.color = '#10b981';
+                        
+                        // イベントを発火して選択が変更されたことを通知
+                        categorySelect.dispatchEvent(new Event('change'));
+                    } else {
+                        categorySuggestMessage.textContent = data.error || 'カテゴリを判定できませんでした。手動で選択してください。';
+                        categorySuggestMessage.style.color = '#ef4444';
+                    }
+                } catch (error) {
+                    console.error('カテゴリ判定エラー:', error);
+                    categorySuggestMessage.textContent = 'カテゴリ判定中にエラーが発生しました。手動で選択してください。';
+                    categorySuggestMessage.style.color = '#ef4444';
+                } finally {
+                    // ボタンを再有効化
+                    categorySuggestBtn.disabled = false;
+                    categorySuggestBtn.style.opacity = '1';
+                    categorySuggestBtn.style.cursor = 'pointer';
+                    categorySuggestText.style.display = 'inline';
+                    categorySuggestLoading.style.display = 'none';
+                }
+            });
+        }
     })();
 </script>
 {% endblock %}

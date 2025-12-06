@@ -37,7 +37,7 @@ from relay.db import (
     get_ranking_by_period,
     get_inheritance_ranking_by_period,
 )
-from relay.content_moderation import check_content
+from relay.content_moderation import check_content, suggest_category
 import uuid
 from datetime import datetime
 import unicodedata
@@ -53,7 +53,7 @@ ALLOWED_ICON_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif'}
 MAX_NICKNAME_LENGTH = 32
 
 MAX_TITLE_LENGTH = 60
-MAX_POST_LENGTH = 280
+MAX_POST_LENGTH = 500
 
 
 @app.context_processor
@@ -114,13 +114,8 @@ def inject_notifications():
 
 
 def calculate_text_length(text):
-    length = 0
-    for ch in text:
-        if unicodedata.east_asian_width(ch) in ('F', 'W'):
-            length += 2
-        else:
-            length += 1
-    return length
+    """文字数を計算（日本語も1文字としてカウント）"""
+    return len(text)
 
 
 def login_required(view_func):
@@ -338,7 +333,7 @@ def save_inheritance(idea_id):
         return redirect(url_for('inheritance_form', idea_id=idea_id))
 
     if calculate_text_length(add_point) > 64:
-        flash('追加したポイントは全角32文字（半角64文字）以内で入力してください。')
+        flash('追加したポイントは64文字以内で入力してください。')
         return redirect(url_for('inheritance_form', idea_id=idea_id))
 
     with get_connection() as con:
@@ -420,7 +415,7 @@ def post_inheritance(idea_id):
         return redirect(url_for('inheritance_form', idea_id=idea_id))
 
     if calculate_text_length(add_point) > 64:
-        flash('追加したポイントは全角32文字（半角64文字）以内で入力してください。')
+        flash('追加したポイントは64文字以内で入力してください。')
         return redirect(url_for('inheritance_form', idea_id=idea_id))
 
     with get_connection() as con:
@@ -456,11 +451,67 @@ def post_inheritance(idea_id):
         if is_inappropriate:
             print(f"[継承投稿処理] 不適切な投稿として拒否されました: {reason}")
             flash(f'不適切な内容が含まれているため、投稿できませんでした。{reason if reason else ""}')
+            # 入力値を一時保存して継承フォームに戻す
+            try:
+                if existing_inheritance:
+                    # 既存レコードを更新
+                    con.execute(
+                        """
+                        UPDATE idea_inheritance 
+                        SET add_point = ?, add_detail = ?, created_at = ?
+                        WHERE inheritance_id = ?
+                        """,
+                        (add_point, add_detail if add_detail else None, created_at, existing_inheritance[0])
+                    )
+                else:
+                    # 新規レコードを作成
+                    inheritance_id = str(uuid.uuid4())
+                    con.execute(
+                        """
+                        INSERT INTO idea_inheritance 
+                        (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (inheritance_id, parent_idea_id, parent_user_id, None, user_id, add_point, add_detail if add_detail else None, created_at)
+                    )
+                if not using_supabase():
+                    con.commit()
+            except Exception:
+                # 保存に失敗してもフォームに戻す
+                pass
             return redirect(url_for('inheritance_form', idea_id=idea_id))
         
         if is_thin_content:
             print(f"[継承投稿処理] 内容が薄い投稿として拒否されました: {reason}")
             flash(f'内容が不十分なため、投稿できませんでした。{reason if reason else "もう少し詳しく説明してください。"}')
+            # 入力値を一時保存して継承フォームに戻す
+            try:
+                if existing_inheritance:
+                    # 既存レコードを更新
+                    con.execute(
+                        """
+                        UPDATE idea_inheritance 
+                        SET add_point = ?, add_detail = ?, created_at = ?
+                        WHERE inheritance_id = ?
+                        """,
+                        (add_point, add_detail if add_detail else None, created_at, existing_inheritance[0])
+                    )
+                else:
+                    # 新規レコードを作成
+                    inheritance_id = str(uuid.uuid4())
+                    con.execute(
+                        """
+                        INSERT INTO idea_inheritance 
+                        (inheritance_id, parent_idea_id, parent_user_id, child_idea_id, child_user_id, add_point, add_detail, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (inheritance_id, parent_idea_id, parent_user_id, None, user_id, add_point, add_detail if add_detail else None, created_at)
+                    )
+                if not using_supabase():
+                    con.commit()
+            except Exception:
+                # 保存に失敗してもフォームに戻す
+                pass
             return redirect(url_for('inheritance_form', idea_id=idea_id))
         
         print("[継承投稿処理] AI判定を通過しました。投稿を保存します...")
@@ -607,6 +658,29 @@ def inheritance_view(inheritance_id):
     return render_template('inheritance_view.html', inheritance=inheritance)
 
 
+@app.route('/api/suggest-category', methods=['POST'])
+@login_required
+def api_suggest_category():
+    """カテゴリ自動判定用のAPIエンドポイント"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'リクエストボディが必要です'}), 400
+    
+    title = data.get('title', '').strip()
+    detail = data.get('detail', '').strip()
+    
+    if not title or not detail:
+        return jsonify({'error': 'タイトルと詳細が必要です'}), 400
+    
+    print(f"[API] カテゴリ判定リクエスト: タイトル={title[:50]}...")
+    suggested_category = suggest_category(title, detail)
+    
+    if suggested_category:
+        return jsonify({'category': suggested_category})
+    else:
+        return jsonify({'category': '', 'error': 'カテゴリを判定できませんでした'}), 200
+
+
 @app.route('/post', methods=['POST'])
 def post():
     if 'user_id' not in session:
@@ -614,19 +688,31 @@ def post():
 
     title = request.form['title']
     detail = request.form['detail']
-    category = request.form['category']
+    category = request.form.get('category', '').strip()
+
+    # カテゴリが空の場合、AIで自動判定
+    if not category:
+        print("[投稿処理] カテゴリが空のため、AIで自動判定します...")
+        suggested_category = suggest_category(title, detail)
+        if suggested_category:
+            category = suggested_category
+            flash(f'カテゴリを自動判定しました: {category}')
+        else:
+            # AI判定に失敗した場合は「その他」をデフォルトに
+            category = 'その他'
+            flash('カテゴリを自動判定できませんでした。「その他」に設定されました。')
 
     if calculate_text_length(title) > MAX_TITLE_LENGTH:
         flash(
-            f'タイトルは全角{MAX_TITLE_LENGTH // 2}文字（半角{MAX_TITLE_LENGTH}文字）以内で入力してください。'
+            f'タイトルは{MAX_TITLE_LENGTH}文字以内で入力してください。'
         )
-        return redirect(url_for('form'))
-
+        return render_template('form.html', form_data={'title': title, 'detail': detail, 'category': category})
+    
     if calculate_text_length(detail) > MAX_POST_LENGTH:
         flash(
-            f'アイデアの詳細は全角{MAX_POST_LENGTH // 2}文字（半角{MAX_POST_LENGTH}文字）以内で入力してください。'
+            f'アイデアの詳細は{MAX_POST_LENGTH}文字以内で入力してください。'
         )
-        return redirect(url_for('form'))
+        return render_template('form.html', form_data={'title': title, 'detail': detail, 'category': category})
 
     # AI判定を実行
     print("\n[投稿処理] AI判定を開始します...")
@@ -635,12 +721,12 @@ def post():
     if is_inappropriate:
         print(f"[投稿処理] 不適切な投稿として拒否されました: {reason}")
         flash(f'不適切な内容が含まれているため、投稿できませんでした。{reason if reason else ""}')
-        return redirect(url_for('form'))
+        return render_template('form.html', form_data={'title': title, 'detail': detail, 'category': category})
     
     if is_thin_content:
         print(f"[投稿処理] 内容が薄い投稿として拒否されました: {reason}")
         flash(f'内容が不十分なため、投稿できませんでした。{reason if reason else "もう少し詳しく説明してください。"}')
-        return redirect(url_for('form'))
+        return render_template('form.html', form_data={'title': title, 'detail': detail, 'category': category})
     
     print("[投稿処理] AI判定を通過しました。投稿を保存します...")
 
