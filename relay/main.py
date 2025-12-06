@@ -1286,21 +1286,36 @@ def fusion():
         tickets = 0
         session['tickets'] = 0
     
-    # 自分の投稿したアイデアを取得
+    # 自分の投稿したアイデアを取得（削除されていないもののみ）
     with get_connection() as con:
-        posted_ideas = con.execute(
-            "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? ORDER BY created_at DESC",
-            (user_id,)
-        ).fetchall()
-        
-        # ガチャで獲得したアイデアを取得
-        gacha_ideas = con.execute("""
-            SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
-            FROM ideas i
-            JOIN gacha_result gr ON i.idea_id = gr.idea_id
-            WHERE gr.user_id = ?
-            ORDER BY i.created_at DESC
-        """, (user_id,)).fetchall()
+        if using_supabase():
+            posted_ideas = con.execute(
+                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND (is_deleted IS NULL OR is_deleted = FALSE) ORDER BY created_at DESC",
+                (user_id,)
+            ).fetchall()
+            
+            # ガチャで獲得したアイデアを取得（削除されていないもののみ）
+            gacha_ideas = con.execute("""
+                SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
+                FROM ideas i
+                JOIN gacha_result gr ON i.idea_id = gr.idea_id
+                WHERE gr.user_id = ? AND (i.is_deleted IS NULL OR i.is_deleted = FALSE)
+                ORDER BY i.created_at DESC
+            """, (user_id,)).fetchall()
+        else:
+            posted_ideas = con.execute(
+                "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC",
+                (user_id,)
+            ).fetchall()
+            
+            # ガチャで獲得したアイデアを取得（削除されていないもののみ）
+            gacha_ideas = con.execute("""
+                SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
+                FROM ideas i
+                JOIN gacha_result gr ON i.idea_id = gr.idea_id
+                WHERE gr.user_id = ? AND (i.is_deleted IS NULL OR i.is_deleted = 0)
+                ORDER BY i.created_at DESC
+            """, (user_id,)).fetchall()
     
     # アイデアを辞書形式に変換
     posted_ideas_list = []
