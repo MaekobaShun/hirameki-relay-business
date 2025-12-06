@@ -177,6 +177,7 @@
         setupCategoryFilter('posted-category-filter', 'posted-ideas-grid');
         setupCategoryFilter('gacha-category-filter', 'gacha-ideas-grid');
         setupCategoryFilter('inheritance-category-filter', 'inheritance-ideas-grid');
+        setupCategoryFilter('fusion-category-filter', 'fusion-ideas-grid');
     });
 </script>
 {% endblock %}
@@ -240,6 +241,10 @@
             <button class="tab-button" data-tab="inheritance">
                 <span class="tab-label">継承</span>
                 <span class="tab-count">{{ inheritance_items|length }}</span>
+            </button>
+            <button class="tab-button" data-tab="fusion">
+                <span class="tab-label">融合</span>
+                <span class="tab-count">{{ fusion_items|length }}</span>
             </button>
         </div>
 
@@ -393,6 +398,56 @@
                         </div>
                     </div>
                 </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 融合タブ -->
+        <div id="fusion-tab" class="tab-content">
+            {% if fusion_items == [] %}
+            <p class="empty-message">まだ融合したアイデアがありません。</p>
+            {% else %}
+            <div class="category-filter-wrapper">
+                <label for="fusion-category-filter" class="filter-label">カテゴリで絞り込み：</label>
+                <select id="fusion-category-filter" class="category-filter">
+                    <option value="">すべて</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="ideas-grid" id="fusion-ideas-grid">
+                {% for fusion in fusion_items %}
+                {% if fusion.fused_idea_id and fusion.fused_title %}
+                <div class="idea-card fusion-card" role="button" tabindex="0"
+                    data-detail-url="{{ url_for('post_view', idea_id=fusion.fused_idea_id) }}"
+                    data-category="{{ fusion.fused_category }}">
+                    <div class="card-body">
+                        <div class="card-header">
+                            <span class="card-category">{{ fusion.fused_category }}</span>
+                        </div>
+                        <h4 class="card-title">{{ fusion.fused_title }}</h4>
+                        <p class="card-detail">{{ fusion.fused_detail }}</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-date relative-time" data-timestamp="{{ fusion.created_at }}">{{ fusion.created_at }}</span>
+                        <div class="card-actions">
+                            <a href="{{ url_for('fusion_result', fusion_id=fusion.fusion_id) }}"
+                                class="btn-sm btn-primary" onclick="event.stopPropagation();">詳細</a>
+                            <form method="post" action="{{ url_for('delete_fusion', fusion_id=fusion.fusion_id) }}"
+                                class="idea-delete-form">
+                                <button type="submit" class="btn-sm btn-danger idea-delete-button" onclick="event.stopPropagation(); return confirm('この融合履歴を削除しますか？');">削除</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 {% endfor %}
             </div>
             {% endif %}

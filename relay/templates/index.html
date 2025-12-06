@@ -69,6 +69,28 @@
             <p>他人のアイデアに便乗しよう！</p>
         </div>
     </a>
+
+    <!-- Fusion -->
+    <a href="{{ url_for('fusion') }}" class="action-card fusion-card">
+        <div class="card-icon-wrapper">
+            <img src="{{ url_for('static', filename='images/fusion.svg') }}" class="card-icon-svg" alt="融合">
+        </div>
+        <div class="card-text">
+            <h3>アイデアを融合</h3>
+            <p>複数のアイデアをAIで融合しよう</p>
+        </div>
+    </a>
+
+    <!-- MyPage -->
+    <a href="{{ url_for('mypage') }}" class="action-card mypage-card">
+        <div class="card-icon-wrapper">
+            <img src="{{ url_for('static', filename='images/user-svgrepo-com.svg') }}" class="card-icon-svg" alt="マイページ">
+        </div>
+        <div class="card-text">
+            <h3>マイページ</h3>
+            <p>あなたの投稿や履歴を確認</p>
+        </div>
+    </a>
 </div>
 
 <!-- Rankings (Timeline Replacement) -->

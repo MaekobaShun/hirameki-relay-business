@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}融合結果 - ひらめきリレー{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='fusion.css') }}">
+{% endblock %}
+
+{% block header_intro %}
+<p class="header-eyebrow">FUSION RESULT</p>
+<h1 class="header-title">融合結果</h1>
+{% endblock %}
+
+{% block content %}
+<div class="fusion-result-main">
+    <section class="fusion-result-wrapper">
+        <h2 class="fusion-result-title">✨ 融合完了！</h2>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="fusion-result-flash">
+            {% for message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% if fusion_result %}
+            <!-- 元のアイデア表示 -->
+            <div class="parent-ideas-section">
+                <h3 class="section-title">融合したアイデア</h3>
+                <div class="parent-ideas-grid">
+                    {% for parent_idea in fusion_result.parent_ideas %}
+                    <div class="parent-idea-card">
+                        <div class="parent-idea-header">
+                            <span class="parent-idea-category">{{ parent_idea.category }}</span>
+                        </div>
+                        <h4 class="parent-idea-title">{{ parent_idea.title }}</h4>
+                        <p class="parent-idea-detail">{{ parent_idea.detail[:150] }}{% if parent_idea.detail|length > 150 %}...{% endif %}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 融合結果表示 -->
+            <div class="fused-idea-section">
+                <h3 class="section-title">融合されたアイデア</h3>
+                {% if fusion_result.fused_idea %}
+                    <!-- 既に投稿されている場合 -->
+                    <article class="fused-idea-card">
+                        <h4 class="fused-idea-title">{{ fusion_result.fused_idea.title }}</h4>
+                        <p class="fused-idea-detail">{{ fusion_result.fused_idea.detail | replace('\n', '<br>') | safe }}</p>
+                        <span class="fused-idea-category">📁 {{ fusion_result.fused_idea.category }}</span>
+                        <div class="fused-idea-actions">
+                            <a href="{{ url_for('post_view', idea_id=fusion_result.fused_idea.idea_id) }}" class="fused-idea-link">投稿を確認</a>
+                        </div>
+                    </article>
+                {% elif fusion_result.fused_title %}
+                    <!-- 新規融合結果の場合 -->
+                    <article class="fused-idea-card">
+                        <h4 class="fused-idea-title">{{ fusion_result.fused_title }}</h4>
+                        <p class="fused-idea-detail">{{ fusion_result.fused_detail | replace('\n', '<br>') | safe }}</p>
+                        <span class="fused-idea-category">📁 {{ fusion_result.fused_category }}</span>
+                        
+                        <!-- 投稿フォーム -->
+                        <form action="{{ url_for('fusion_post') }}" method="post" class="fusion-post-form">
+                            <input type="hidden" name="fusion_id" value="{{ fusion_id }}">
+                            <input type="hidden" name="title" value="{{ fusion_result.fused_title }}">
+                            <input type="hidden" name="detail" value="{{ fusion_result.fused_detail }}">
+                            <input type="hidden" name="category" value="{{ fusion_result.fused_category }}">
+                            <button type="submit" class="fusion-post-button">このアイデアを投稿する</button>
+                        </form>
+                    </article>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="fusion-result-empty">
+                <p>融合結果が見つかりませんでした。</p>
+            </div>
+        {% endif %}
+
+        <div class="fusion-result-actions">
+            <a href="{{ url_for('fusion') }}" class="fusion-result-button secondary">もう一度融合する</a>
+            <a href="{{ url_for('index') }}" class="fusion-result-button">ホームに戻る</a>
+        </div>
+    </section>
+</div>
+{% endblock %}
+

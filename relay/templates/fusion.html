@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}アイデア融合 - ひらめきリレー{% endblock %}
+
+{% block header_intro %}
+<p class="header-eyebrow">FUSION</p>
+<h1 class="header-title">アイデア融合</h1>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='fusion.css') }}">
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let selectedCount = 0;
+    const minSelection = 2;
+    const maxSelection = 3;
+    
+    function updateSelectionCount() {
+        const checkboxes = document.querySelectorAll('input[name="idea_ids"]:checked');
+        selectedCount = checkboxes.length;
+        const countDisplay = document.getElementById('selection-count');
+        const executeButton = document.getElementById('execute-button');
+        
+        if (countDisplay) {
+            countDisplay.textContent = selectedCount;
+        }
+        
+        if (executeButton) {
+            if (selectedCount < minSelection || selectedCount > maxSelection) {
+                executeButton.disabled = true;
+                executeButton.style.opacity = '0.5';
+                executeButton.style.cursor = 'not-allowed';
+            } else {
+                executeButton.disabled = false;
+                executeButton.style.opacity = '1';
+                executeButton.style.cursor = 'pointer';
+            }
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkboxes = document.querySelectorAll('input[name="idea_ids"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const checked = document.querySelectorAll('input[name="idea_ids"]:checked');
+                if (checked.length > maxSelection) {
+                    this.checked = false;
+                    alert(`アイデアは最大${maxSelection}個まで選択できます。`);
+                }
+                updateSelectionCount();
+            });
+        });
+        updateSelectionCount();
+        
+        // カテゴリフィルタリング機能
+        const categoryFilter = document.getElementById('fusion-category-filter');
+        const ideasGrid = document.getElementById('fusion-ideas-grid');
+        
+        if (categoryFilter && ideasGrid) {
+            categoryFilter.addEventListener('change', function() {
+                const selectedCategory = this.value;
+                const ideaCards = ideasGrid.querySelectorAll('.idea-selection-card');
+                let visibleCount = 0;
+                
+                ideaCards.forEach(card => {
+                    const cardCategory = card.getAttribute('data-category');
+                    if (selectedCategory === '' || cardCategory === selectedCategory) {
+                        card.style.display = '';
+                        visibleCount++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // 空メッセージの表示/非表示
+                let emptyMessage = ideasGrid.parentElement.querySelector('.filtered-empty-message');
+                if (visibleCount === 0) {
+                    if (!emptyMessage) {
+                        const msg = document.createElement('p');
+                        msg.className = 'empty-message filtered-empty-message';
+                        msg.textContent = '選択したカテゴリに該当するアイデアがありません。';
+                        msg.style.textAlign = 'center';
+                        msg.style.padding = '2rem';
+                        msg.style.color = '#64748b';
+                        ideasGrid.parentElement.appendChild(msg);
+                    }
+                } else {
+                    if (emptyMessage) {
+                        emptyMessage.remove();
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="fusion-main">
+    <section class="fusion-card">
+        <div class="fusion-header">
+            <div class="fusion-icon">
+                <img src="{{ url_for('static', filename='images/fusion.svg') }}" alt="融合" style="width: 4rem; height: 4rem;">
+            </div>
+            <h2 class="fusion-title">アイデア融合</h2>
+            <p class="fusion-description">
+                <strong>2〜3個のアイデアを選択して、AIで融合させよう</strong>
+            </p>
+        </div>
+        
+        <div class="fusion-ticket-display">
+            <span class="ticket-label">
+                <img src="{{ url_for('static', filename='images/ticket-5-svgrepo-com.svg') }}" alt="チケット" class="ticket-icon">
+                ガチャチケット
+            </span>
+            <span class="ticket-count" id="ticket-count">{{ tickets }}</span>
+            <span class="ticket-unit">枚</span>
+        </div>
+        
+        <div class="fusion-selection-info">
+            <p>選択中: <span id="selection-count">0</span> / <span id="max-selection">3</span>個</p>
+            <p class="fusion-hint">2〜3個のアイデアを選択してください</p>
+        </div>
+        
+        {% if ideas == [] %}
+        <div class="fusion-empty">
+            <p>融合できるアイデアがありません。</p>
+            <p>まずはアイデアを投稿するか、ガチャを回してアイデアを獲得しましょう。</p>
+            <a href="{{ url_for('form') }}" class="fusion-link-button">アイデアを投稿</a>
+            <a href="{{ url_for('gacha') }}" class="fusion-link-button">ガチャを回す</a>
+        </div>
+        {% else %}
+        <form action="{{ url_for('fusion_execute') }}" method="post" id="fusion-form">
+            <div class="category-filter-wrapper" style="margin-bottom: 1.5rem;">
+                <label for="fusion-category-filter" class="filter-label">カテゴリで絞り込み：</label>
+                <select id="fusion-category-filter" class="category-filter">
+                    <option value="">すべて</option>
+                    <option value="ビジネス・業務効率化">ビジネス・業務効率化</option>
+                    <option value="教育">教育</option>
+                    <option value="エンタメ">エンタメ</option>
+                    <option value="クリエイティブ・創作支援">クリエイティブ・創作支援</option>
+                    <option value="生活・ライフスタイル">生活・ライフスタイル</option>
+                    <option value="コミュニケーション">コミュニケーション</option>
+                    <option value="開発者ツール">開発者ツール</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="ideas-selection-grid" id="fusion-ideas-grid">
+                {% for idea in ideas %}
+                <div class="idea-selection-card" data-category="{{ idea.category }}">
+                    <label class="idea-checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            name="idea_ids" 
+                            value="{{ idea.idea_id }}"
+                            class="idea-checkbox"
+                        >
+                        <div class="idea-card-content">
+                            <div class="idea-card-header">
+                                <span class="idea-category">{{ idea.category }}</span>
+                                <span class="idea-source-badge">{{ '投稿' if idea.source == 'posted' else 'ガチャ' }}</span>
+                            </div>
+                            <h4 class="idea-title">{{ idea.title }}</h4>
+                            <p class="idea-detail">{{ idea.detail[:100] }}{% if idea.detail|length > 100 %}...{% endif %}</p>
+                        </div>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="fusion-actions">
+                <button type="submit" id="execute-button" class="fusion-execute-button" disabled>
+                    <span class="button-icon">
+                        <img src="{{ url_for('static', filename='images/fusion.svg') }}" alt="融合" style="width: 1.2rem; height: 1.2rem;">
+                    </span>
+                    融合実行（チケット1枚消費）
+                </button>
+                <a href="{{ url_for('index') }}" class="fusion-cancel-link">キャンセル</a>
+            </div>
+        </form>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+

@@ -37,7 +37,7 @@ from relay.db import (
     get_ranking_by_period,
     get_inheritance_ranking_by_period,
 )
-from relay.content_moderation import check_content, suggest_category
+from relay.content_moderation import check_content, suggest_category, fuse_ideas
 import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -1269,6 +1269,348 @@ def spin():
 
 # ここまでガチャ機能
 
+# ==================== アイデア融合機能 ====================
+
+@app.route('/fusion')
+@login_required
+def fusion():
+    """アイデア融合選択画面"""
+    user_id = session.get('user_id')
+    
+    # セッションにチケット数があればそれを使用、なければDBから取得して同期
+    tickets = session.get('tickets')
+    if tickets is None and user_id:
+        tickets = get_user_tickets(user_id)
+        session['tickets'] = tickets
+    elif tickets is None:
+        tickets = 0
+        session['tickets'] = 0
+    
+    # 自分の投稿したアイデアを取得
+    with get_connection() as con:
+        posted_ideas = con.execute(
+            "SELECT idea_id, title, detail, category, created_at FROM ideas WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+        
+        # ガチャで獲得したアイデアを取得
+        gacha_ideas = con.execute("""
+            SELECT DISTINCT i.idea_id, i.title, i.detail, i.category, i.created_at
+            FROM ideas i
+            JOIN gacha_result gr ON i.idea_id = gr.idea_id
+            WHERE gr.user_id = ?
+            ORDER BY i.created_at DESC
+        """, (user_id,)).fetchall()
+    
+    # アイデアを辞書形式に変換
+    posted_ideas_list = []
+    for row in posted_ideas:
+        posted_ideas_list.append({
+            'idea_id': row[0],
+            'title': row[1],
+            'detail': row[2],
+            'category': row[3],
+            'created_at': row[4],
+            'source': 'posted'
+        })
+    
+    gacha_ideas_list = []
+    for row in gacha_ideas:
+        gacha_ideas_list.append({
+            'idea_id': row[0],
+            'title': row[1],
+            'detail': row[2],
+            'category': row[3],
+            'created_at': row[4],
+            'source': 'gacha'
+        })
+    
+    # 全てのアイデアを結合
+    all_ideas = posted_ideas_list + gacha_ideas_list
+    
+    return render_template(
+        'fusion.html',
+        ideas=all_ideas,
+        tickets=tickets
+    )
+
+
+@app.route('/fusion/execute', methods=['POST'])
+@login_required
+def fusion_execute():
+    """アイデア融合実行"""
+    user_id = session.get('user_id')
+    
+    # 選択されたアイデアIDを取得
+    selected_idea_ids = request.form.getlist('idea_ids')
+    
+    # アイデア数チェック（2〜3個）
+    if len(selected_idea_ids) < 2 or len(selected_idea_ids) > 3:
+        flash('アイデアは2〜3個選択してください。')
+        return redirect(url_for('fusion'))
+    
+    # チケット数チェック
+    session_tickets = session.get('tickets')
+    if session_tickets is None:
+        session_tickets = get_user_tickets(user_id)
+        session['tickets'] = session_tickets
+    
+    if session_tickets < 1:
+        flash('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。')
+        return redirect(url_for('fusion'))
+    
+    # 選択されたアイデアの情報を取得
+    with get_connection() as con:
+        ideas_data = []
+        for idea_id in selected_idea_ids:
+            row = con.execute(
+                "SELECT idea_id, title, detail, category FROM ideas WHERE idea_id = ?",
+                (idea_id,)
+            ).fetchone()
+            if row:
+                ideas_data.append({
+                    'idea_id': row[0],
+                    'title': row[1],
+                    'detail': row[2],
+                    'category': row[3]
+                })
+    
+    if len(ideas_data) != len(selected_idea_ids):
+        flash('選択されたアイデアの一部が見つかりませんでした。')
+        return redirect(url_for('fusion'))
+    
+    # AI融合を実行
+    print(f"\n[アイデア融合] {len(ideas_data)}つのアイデアを融合します...")
+    fused_result = fuse_ideas(ideas_data)
+    
+    if not fused_result or not fused_result.get('title'):
+        flash('アイデアの融合に失敗しました。もう一度お試しください。')
+        return redirect(url_for('fusion'))
+    
+    # チケットを消費して融合結果を保存
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    fusion_id = str(uuid.uuid4())
+    
+    with get_connection() as con:
+        # トランザクション内でチケットを消費
+        try:
+            ticket_row = con.execute(
+                "SELECT ticket_count FROM mypage WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()
+        except Exception:
+            try:
+                ticket_row = con.execute(
+                    "SELECT tickets FROM mypage WHERE user_id = ?",
+                    (user_id,)
+                ).fetchone()
+            except Exception:
+                ticket_row = (session_tickets,)
+        
+        db_tickets = ticket_row[0] if ticket_row else session_tickets
+        current_tickets = min(session_tickets, db_tickets)
+        
+        if current_tickets < 1:
+            session['tickets'] = 0
+            flash('ガチャチケットが不足しています。')
+            return redirect(url_for('fusion'))
+        
+        # チケットを1枚消費
+        new_tickets = max(0, current_tickets - 1)
+        try:
+            con.execute(
+                "UPDATE mypage SET ticket_count = ? WHERE user_id = ?",
+                (new_tickets, user_id)
+            )
+        except Exception:
+            try:
+                con.execute(
+                    "UPDATE mypage SET tickets = ? WHERE user_id = ?",
+                    (new_tickets, user_id)
+                )
+            except Exception:
+                pass
+        
+        # 融合履歴を保存
+        parent_idea_id_1 = selected_idea_ids[0]
+        parent_idea_id_2 = selected_idea_ids[1]
+        parent_idea_id_3 = selected_idea_ids[2] if len(selected_idea_ids) > 2 else None
+        
+        con.execute("""
+            INSERT INTO idea_fusion 
+            (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, None, now))
+        
+        if not using_supabase():
+            con.commit()
+    
+    # セッションのチケット数を更新
+    session['tickets'] = new_tickets
+    session.modified = True
+    
+    # 融合結果をセッションに保存（結果ページで表示するため）
+    session['last_fusion_result'] = {
+        'fusion_id': fusion_id,
+        'fused_title': fused_result['title'],
+        'fused_detail': fused_result['detail'],
+        'fused_category': fused_result['category'],
+        'parent_ideas': ideas_data
+    }
+    
+    return redirect(url_for('fusion_result', fusion_id=fusion_id))
+
+
+@app.route('/fusion/result/<fusion_id>')
+@login_required
+def fusion_result(fusion_id):
+    """融合結果表示"""
+    user_id = session.get('user_id')
+    
+    # セッションから融合結果を取得
+    fusion_result_data = session.pop('last_fusion_result', None)
+    
+    if not fusion_result_data:
+        # セッションにない場合はDBから取得
+        with get_connection() as con:
+            fusion_row = con.execute(
+                "SELECT fusion_id, user_id, parent_idea_id_1, parent_idea_id_2, parent_idea_id_3, fused_idea_id, created_at FROM idea_fusion WHERE fusion_id = ?",
+                (fusion_id,)
+            ).fetchone()
+            
+            if not fusion_row or fusion_row[1] != user_id:
+                flash('融合結果が見つかりませんでした。')
+                return redirect(url_for('fusion'))
+            
+            # 親アイデアの情報を取得
+            parent_ideas = []
+            for parent_id in [fusion_row[2], fusion_row[3], fusion_row[4]]:
+                if parent_id:
+                    idea_row = con.execute(
+                        "SELECT idea_id, title, detail, category FROM ideas WHERE idea_id = ?",
+                        (parent_id,)
+                    ).fetchone()
+                    if idea_row:
+                        parent_ideas.append({
+                            'idea_id': idea_row[0],
+                            'title': idea_row[1],
+                            'detail': idea_row[2],
+                            'category': idea_row[3]
+                        })
+            
+            # 融合結果のアイデアが既に投稿されている場合
+            fused_idea = None
+            if fusion_row[5]:
+                fused_row = con.execute(
+                    "SELECT idea_id, title, detail, category FROM ideas WHERE idea_id = ?",
+                    (fusion_row[5],)
+                ).fetchone()
+                if fused_row:
+                    fused_idea = {
+                        'idea_id': fused_row[0],
+                        'title': fused_row[1],
+                        'detail': fused_row[2],
+                        'category': fused_row[3]
+                    }
+            
+            fusion_result_data = {
+                'fusion_id': fusion_id,
+                'parent_ideas': parent_ideas,
+                'fused_idea': fused_idea,
+                'created_at': fusion_row[6]
+            }
+    
+    return render_template(
+        'fusion_result.html',
+        fusion_id=fusion_id,
+        fusion_result=fusion_result_data
+    )
+
+
+@app.route('/fusion/post', methods=['POST'])
+@login_required
+def fusion_post():
+    """融合結果を投稿として保存"""
+    user_id = session.get('user_id')
+    fusion_id = request.form.get('fusion_id')
+    title = request.form.get('title', '').strip()
+    detail = request.form.get('detail', '').strip()
+    category = request.form.get('category', '').strip()
+    
+    if not fusion_id or not title or not detail or not category:
+        flash('すべての項目を入力してください。')
+        return redirect(url_for('fusion_result', fusion_id=fusion_id))
+    
+    # 融合履歴を確認
+    with get_connection() as con:
+        fusion_row = con.execute(
+            "SELECT user_id, fused_idea_id FROM idea_fusion WHERE fusion_id = ?",
+            (fusion_id,)
+        ).fetchone()
+        
+        if not fusion_row or fusion_row[0] != user_id:
+            flash('融合結果が見つかりませんでした。')
+            return redirect(url_for('fusion'))
+        
+        # 既に投稿されている場合は更新、そうでなければ新規作成
+        if fusion_row[1]:
+            # 既存のアイデアを更新
+            con.execute(
+                "UPDATE ideas SET title = ?, detail = ?, category = ? WHERE idea_id = ?",
+                (title, detail, category, fusion_row[1])
+            )
+            idea_id = fusion_row[1]
+        else:
+            # 新規アイデアを作成
+            idea_id = str(uuid.uuid4())
+            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            con.execute(
+                "INSERT INTO ideas (idea_id, title, detail, category, user_id, created_at, inheritance_flag) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (idea_id, title, detail, category, user_id, created_at, False)
+            )
+            
+            # 融合履歴を更新
+            con.execute(
+                "UPDATE idea_fusion SET fused_idea_id = ? WHERE fusion_id = ?",
+                (idea_id, fusion_id)
+            )
+        
+        if not using_supabase():
+            con.commit()
+    
+    flash('融合結果を投稿しました！')
+    return redirect(url_for('post_view', idea_id=idea_id))
+
+
+@app.route('/fusion/<fusion_id>/delete', methods=['POST'])
+@login_required
+def delete_fusion(fusion_id):
+    """融合履歴を削除"""
+    user_id = session.get('user_id')
+    
+    with get_connection() as con:
+        # 融合履歴がユーザーのものか確認
+        fusion_row = con.execute(
+            "SELECT user_id FROM idea_fusion WHERE fusion_id = ?",
+            (fusion_id,)
+        ).fetchone()
+        
+        if not fusion_row or fusion_row[0] != user_id:
+            flash('この融合履歴を削除できません。')
+            return redirect(url_for('mypage'))
+        
+        # 融合履歴を削除（fused_idea_idがある場合でも、ideasテーブルのアイデアは削除しない）
+        con.execute(
+            "DELETE FROM idea_fusion WHERE fusion_id = ?",
+            (fusion_id,)
+        )
+        
+        if not using_supabase():
+            con.commit()
+    
+    flash('融合履歴を削除しました。')
+    return redirect(url_for('mypage'))
+
 # マイページ
 @app.route('/mypage/update', methods=['POST'])
 def update_profile():
@@ -1411,6 +1753,24 @@ def mypage():
             ORDER BY ii.created_at DESC
         """, (user_id,)).fetchall()
 
+        # 融合履歴を取得
+        fusion_rows = con.execute("""
+            SELECT 
+                if.fusion_id,
+                if.parent_idea_id_1,
+                if.parent_idea_id_2,
+                if.parent_idea_id_3,
+                if.fused_idea_id,
+                if.created_at,
+                fused_i.title as fused_title,
+                fused_i.detail as fused_detail,
+                fused_i.category as fused_category
+            FROM idea_fusion if
+            LEFT JOIN ideas fused_i ON if.fused_idea_id = fused_i.idea_id
+            WHERE if.user_id = ?
+            ORDER BY if.created_at DESC
+        """, (user_id,)).fetchall()
+
     # 自分の投稿一覧（削除済みは非表示）
     ideas = []
     for row in idea_rows:
@@ -1472,13 +1832,29 @@ def mypage():
             'parent_is_deleted': parent_is_deleted
         })
 
+    # 融合履歴
+    fusion_items = []
+    for row in fusion_rows:
+        fusion_items.append({
+            'fusion_id': row[0],
+            'parent_idea_id_1': row[1],
+            'parent_idea_id_2': row[2],
+            'parent_idea_id_3': row[3],
+            'fused_idea_id': row[4],
+            'created_at': row[5],
+            'fused_title': row[6],
+            'fused_detail': row[7],
+            'fused_category': row[8]
+        })
+
     return render_template(
         'mypage.html',
         user=user,
         ideas=ideas,
         gacha_results=gacha_results,
         revival_notifications=revival_notifications,
-        inheritance_items=inheritance_items
+        inheritance_items=inheritance_items,
+        fusion_items=fusion_items
     )
 
 

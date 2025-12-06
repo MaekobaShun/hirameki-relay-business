@@ -33,6 +33,10 @@
                 <img src="{{ url_for('static', filename='images/die-5-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ガチャ">
                 <span>ガチャ</span>
             </a>
+            <a href="{{ url_for('fusion') }}" class="nav-item {% if request.endpoint in ['fusion', 'fusion_execute', 'fusion_result'] %}active{% endif %}">
+                <img src="{{ url_for('static', filename='images/fusion.svg') }}" class="nav-icon-svg" alt="融合">
+                <span>融合</span>
+            </a>
             <a href="{{ url_for('ranking') }}" class="nav-item {% if request.endpoint == 'ranking' %}active{% endif %}">
                 <img src="{{ url_for('static', filename='images/trophy-svgrepo-com.svg') }}" class="nav-icon-svg" alt="ランキング">
                 <span>ランキング</span>

@@ -381,6 +381,19 @@ def create_table():
             )
         """)
 
+        # idea_fusionテーブルを作成（AI融合機能用）
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS idea_fusion (
+                fusion_id          VARCHAR(64) PRIMARY KEY,
+                user_id            VARCHAR(64) NOT NULL,
+                parent_idea_id_1   VARCHAR(64) NOT NULL,
+                parent_idea_id_2   VARCHAR(64) NOT NULL,
+                parent_idea_id_3   VARCHAR(64),
+                fused_idea_id      VARCHAR(64),
+                created_at         TIMESTAMP NOT NULL
+            )
+        """)
+
 
 def fetch_items(exclude_user_id=None, category=None, include_deleted=False):
     """

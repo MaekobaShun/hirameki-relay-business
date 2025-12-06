@@ -69,7 +69,7 @@ def check_content(title: str, detail: str, category: str) -> Tuple[bool, bool, s
         except Exception as model_error:
             # フォールバック: gemini-1.5-flashを使用
             print(f"[AI判定] gemini-2.5-flash-liteが利用できません。gemini-1.5-flashにフォールバックします: {model_error}")
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             print("[AI判定] モデル: gemini-1.5-flash を使用します")
         
         # 判定用のプロンプト
@@ -257,7 +257,7 @@ def suggest_category(title: str, detail: str) -> str:
         try:
             model = genai.GenerativeModel('gemini-2.5-flash-lite')
         except Exception:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
         
         # カテゴリ判定用のプロンプト
         prompt = f"""以下の投稿内容から、最も適切なカテゴリを1つ選択してください。
@@ -334,3 +334,155 @@ JSON形式で回答してください：
         logger.error(f"Category suggestion error: {e}", exc_info=True)
         return ""
 
+
+def fuse_ideas(idea_list: list) -> dict:
+    """
+    複数のアイデアをAIで融合して新しいアイデアを生成
+    
+    Args:
+        idea_list: アイデアのリスト。各アイデアは {"title": str, "detail": str, "category": str} の形式
+    
+    Returns:
+        {"title": str, "detail": str, "category": str} または空のdict（エラー時）
+    """
+    # モデレーションが無効化されている場合はスキップ
+    if not ENABLE_CONTENT_MODERATION:
+        return {}
+    
+    # APIキーが設定されていない場合はスキップ
+    if not GEMINI_AVAILABLE or not GEMINI_API_KEY:
+        return {}
+    
+    # アイデアが2〜3個であることを確認
+    if len(idea_list) < 2 or len(idea_list) > 3:
+        print(f"[アイデア融合] アイデア数が不正です: {len(idea_list)}個（2〜3個である必要があります）")
+        return {}
+    
+    # 利用可能なカテゴリリスト
+    available_categories = [
+        "ビジネス・業務効率化",
+        "教育",
+        "エンタメ",
+        "クリエイティブ・創作支援",
+        "生活・ライフスタイル",
+        "コミュニケーション",
+        "開発者ツール",
+        "その他"
+    ]
+    
+    try:
+        import google.generativeai as genai
+        from google.api_core import exceptions as google_exceptions
+        
+        # Gemini 2.5 Flash-Liteモデルを初期化
+        try:
+            model = genai.GenerativeModel('gemini-2.5-flash-lite')
+            print("[アイデア融合] モデル: gemini-2.5-flash-lite を使用します")
+        except Exception:
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            print("[アイデア融合] モデル: gemini-2.5-flash を使用します")
+        
+        # アイデア情報を整形
+        ideas_text = ""
+        for i, idea in enumerate(idea_list, 1):
+            ideas_text += f"""
+【アイデア{i}】
+タイトル: {idea.get('title', '')}
+詳細: {idea.get('detail', '')}
+カテゴリ: {idea.get('category', '')}
+"""
+        
+        # 融合用のプロンプト
+        prompt = f"""以下の{len(idea_list)}つのアイデアを融合して、新しい革新的なアイデアを生成してください。
+
+{ideas_text}
+
+【要件】
+1. 各アイデアの良い点を組み合わせて、より価値のある新しいアイデアを作成してください
+2. 単純な組み合わせではなく、創造的に融合させてください
+3. 新しいタイトル（60文字以内）を考えてください
+4. 詳細な説明（500文字以内）を書いてください
+5. 適切なカテゴリを選択してください
+
+選択可能なカテゴリ:
+{', '.join(available_categories)}
+
+JSON形式で回答してください：
+{{
+  "title": "融合されたアイデアのタイトル（60文字以内）",
+  "detail": "融合されたアイデアの詳細説明（500文字以内）",
+  "category": "カテゴリ名（上記のいずれか1つ）"
+}}
+
+該当するカテゴリがない場合は "その他" を選択してください。"""
+        
+        print(f"[アイデア融合] {len(idea_list)}つのアイデアを融合しています...")
+        
+        max_retries = 3
+        retry_delay = 1
+        response = None
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(prompt)
+                if attempt > 0:
+                    print(f"[アイデア融合] リトライ成功しました（試行 {attempt + 1}/{max_retries}）")
+                break
+            except google_exceptions.ResourceExhausted as e:
+                last_exception = e
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)
+                    print(f"[アイデア融合] レート制限エラー（429）。{wait_time}秒後にリトライします... (試行 {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    print(f"[アイデア融合] リトライ上限に達しました（{max_retries}回試行）")
+                    raise
+        
+        if response is None:
+            raise last_exception if last_exception else Exception("API呼び出しに失敗しました")
+        
+        response_text = response.text.strip()
+        print(f"[アイデア融合] AIからのレスポンス: {response_text[:200]}...")
+        
+        # JSON部分を抽出
+        json_match = re.search(r'\{[^}]+\}', response_text, re.DOTALL)
+        if json_match:
+            try:
+                result = json.loads(json_match.group())
+                fused_title = result.get('title', '').strip()
+                fused_detail = result.get('detail', '').strip()
+                fused_category = result.get('category', '').strip()
+                
+                # カテゴリの検証
+                if fused_category not in available_categories:
+                    print(f"[アイデア融合] 無効なカテゴリが提案されました: {fused_category}")
+                    fused_category = "その他"
+                
+                # タイトルと詳細の長さチェック
+                if len(fused_title) > 60:
+                    fused_title = fused_title[:60]
+                if len(fused_detail) > 500:
+                    fused_detail = fused_detail[:500]
+                
+                print(f"[アイデア融合] 融合成功:")
+                print(f"  タイトル: {fused_title}")
+                print(f"  カテゴリ: {fused_category}")
+                
+                return {
+                    "title": fused_title,
+                    "detail": fused_detail,
+                    "category": fused_category
+                }
+            except json.JSONDecodeError as e:
+                print(f"[アイデア融合] JSONパースエラー: {e}")
+                print(f"[アイデア融合] 元のレスポンス: {response_text}")
+                return {}
+        else:
+            print(f"[アイデア融合] JSONが見つかりません。レスポンス全文: {response_text}")
+            return {}
+            
+    except Exception as e:
+        print(f"[アイデア融合] エラー: {str(e)}")
+        logger.error(f"Idea fusion error: {e}", exc_info=True)
+        return {}
