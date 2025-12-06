@@ -468,10 +468,16 @@ body {
 
 .revival-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     padding-top: 0.5rem;
     border-top: 1px solid rgba(229, 231, 235, 0.8);
     margin-top: 0.5rem;
+}
+
+.revival-footer .idea-category {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
 }
 
 .revival-date {
