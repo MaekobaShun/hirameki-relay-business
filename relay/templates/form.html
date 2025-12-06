@@ -13,9 +13,15 @@
 
 {% block content %}
 <div class="form-main">
-    <section class="form-card glass-card">
-        <div class="form-top">
+    <section class="form-card">
+        <div class="form-header">
+            <div class="form-icon">
+                <img src="{{ url_for('static', filename='images/edit-1479-svgrepo-com.svg') }}" alt="投稿" style="width: 4rem; height: 4rem;">
+            </div>
             <h2 class="form-title">アイデアを投稿</h2>
+            <p class="form-description">
+                <strong>あなたのひらめきを共有しよう</strong>
+            </p>
         </div>
 
         <!-- Flash messages are handled in base.html, but if we want them inside the card, we can keep them here too or rely on base. 

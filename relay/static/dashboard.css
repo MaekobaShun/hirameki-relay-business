@@ -107,30 +107,168 @@
 /* Action Cards */
 .action-cards-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
 
 .action-card {
     background: white;
-    border-radius: 1rem;
-    padding: 1.5rem;
+    border-radius: 1.5rem;
+    padding: 2rem;
     display: flex;
     align-items: center;
     text-decoration: none;
     color: var(--text-main);
-    box-shadow: var(--card-shadow);
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid transparent;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    min-height: 140px;
 }
 
 .action-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--hover-shadow);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-/* Icon Animations */
+.action-card::after {
+    display: none;
+}
+
+/* Icon Wrapper Common */
+.card-icon-wrapper {
+    font-size: 2rem;
+    width: 64px;
+    height: 64px;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1.5rem;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    box-shadow: none;
+}
+
+.action-card:hover .card-icon-wrapper {
+    transform: scale(1.1);
+}
+
+.card-icon-svg {
+    width: 32px;
+    height: 32px;
+    transition: filter 0.3s ease;
+}
+
+/* Text Content */
+.card-text {
+    flex: 1;
+    z-index: 1;
+}
+
+.card-text h3 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin-bottom: 0.35rem;
+    line-height: 1.2;
+    text-shadow: none;
+    color: var(--text-main);
+}
+
+.card-text p {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin: 0;
+}
+
+/* --- Card Variants --- */
+
+/* Post Card */
+.post-card:hover {
+    border-color: #f59e0b;
+}
+
+.post-card .card-icon-wrapper {
+    background: #fff7ed;
+}
+
+.post-card .card-icon-svg {
+    filter: invert(48%) sepia(79%) saturate(3730%) hue-rotate(345deg) brightness(93%) contrast(93%);
+}
+
+.post-card:hover .card-icon-svg {
+    animation: icon-wiggle 0.5s ease-in-out;
+}
+
+/* Gacha Card */
+.gacha-card:hover {
+    border-color: #a855f7;
+}
+
+.gacha-card .card-icon-wrapper {
+    background: #f3e8ff;
+}
+
+.gacha-card .card-icon-svg {
+    filter: invert(43%) sepia(96%) saturate(2289%) hue-rotate(252deg) brightness(91%) contrast(92%);
+}
+
+.gacha-card:hover .card-icon-svg {
+    animation: icon-spin 0.8s ease-in-out;
+}
+
+/* Fusion Card */
+.fusion-card {
+    background: white;
+    color: var(--text-main);
+}
+
+.fusion-card::before {
+    display: none;
+}
+
+.fusion-card:hover {
+    border-color: #ec4899;
+}
+
+.fusion-card .card-icon-wrapper {
+    background: #fce7f3;
+}
+
+.fusion-card .card-icon-svg {
+    filter: invert(36%) sepia(54%) saturate(3574%) hue-rotate(303deg) brightness(95%) contrast(92%);
+}
+
+.fusion-card:hover .card-icon-svg {
+    animation: icon-pulse-rotate 1.5s ease-in-out;
+}
+
+/* MyPage Card */
+.mypage-card {
+    background: white;
+    color: var(--text-main);
+}
+
+.mypage-card:hover {
+    border-color: #3b82f6;
+}
+
+.mypage-card .card-icon-wrapper {
+    background: #eff6ff;
+}
+
+.mypage-card .card-icon-svg {
+    filter: invert(40%) sepia(93%) saturate(1352%) hue-rotate(202deg) brightness(93%) contrast(96%);
+}
+
+.mypage-card:hover .card-icon-svg {
+    animation: icon-bounce 0.6s ease-in-out;
+}
+
+/* Animations */
 @keyframes icon-wiggle {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(-12deg); }
@@ -142,71 +280,21 @@
     100% { transform: rotate(360deg); }
 }
 
-.post-card:hover .card-icon-svg {
-    animation: icon-wiggle 0.5s ease-in-out;
+@keyframes icon-pulse-rotate {
+    0% { 
+        transform: scale(1) rotate(0deg);
+    }
+    50% { 
+        transform: scale(1.2) rotate(180deg);
+    }
+    100% { 
+        transform: scale(1) rotate(360deg);
+    }
 }
 
-.gacha-card:hover .card-icon-svg {
-    animation: icon-spin 0.8s ease-in-out;
-}
-
-.post-card:hover {
-    border-color: #f59e0b;
-}
-
-.gacha-card {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-    color: white;
-}
-
-.card-icon-wrapper {
-    font-size: 2rem;
-    width: 60px;
-    height: 60px;
-    background: #fef3c7; /* Light yellow for post */
-    border-radius: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 1.25rem;
-}
-
-.card-icon-svg {
-    width: 32px;
-    height: 32px;
-}
-
-.post-card .card-icon-svg {
-    /* Orange active color from sidebar */
-    filter: invert(48%) sepia(79%) saturate(3730%) hue-rotate(345deg) brightness(93%) contrast(93%);
-}
-
-.gacha-card .card-icon-svg {
-    filter: brightness(0) invert(1);
-}
-
-.post-card .card-icon-wrapper {
-    background: #fff7ed;
-}
-
-.gacha-card .card-icon-wrapper {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.card-text h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-}
-
-.card-text p {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-.gacha-card .card-text p {
-    color: rgba(255, 255, 255, 0.9);
+@keyframes icon-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
 }
 
 /* Ranking Section */

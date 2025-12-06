@@ -213,6 +213,29 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
+    max-height: 850px; /* カード3つ分の高さ: (240px × 3) + (gap × 2) + 余白 */
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    min-height: 0;
+}
+
+/* スクロールバーのスタイリング */
+.ideas-selection-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ideas-selection-grid::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.ideas-selection-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.ideas-selection-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .idea-selection-card {

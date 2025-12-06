@@ -5,56 +5,78 @@
     margin: 0 auto;
     padding: 0 0 3rem;
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    justify-content: center;
 }
 
-.glass-card {
-    background: rgba(255, 255, 255, 1);
+.form-card {
+    width: 100%;
+    padding: 3rem;
     border-radius: 2rem;
     border: 1px solid rgba(226, 232, 240, 0.9);
-    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 25px 60px rgba(99, 102, 241, 0.14);
     position: relative;
     overflow: hidden;
 }
 
-.form-card {
-    padding: 3rem;
-    position: relative;
-    isolation: isolate;
+.form-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 20% 15%, rgba(251, 146, 60, 0.25), transparent 55%),
+        radial-gradient(circle at 80% 10%, rgba(249, 115, 22, 0.25), transparent 45%);
+    opacity: 0.8;
 }
 
-.form-card::before,
 .form-card::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    z-index: -1;
+    background: rgba(255, 255, 255, 0.96);
 }
 
-.form-card::before {
-    background: radial-gradient(circle at 15% 20%, rgba(129, 140, 248, 0.35), transparent 55%),
-        radial-gradient(circle at 85% 15%, rgba(244, 114, 182, 0.35), transparent 45%);
-    opacity: 0.8;
+.form-card > * {
+    position: relative;
+    z-index: 1;
 }
 
-.form-card::after {
-    background: rgba(255, 255, 255, 0.95);
+.form-header {
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
-.form-top {
+.form-icon {
+    margin-bottom: 1rem;
+    animation: float 3.2s ease-in-out infinite;
     display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-    margin-bottom: 2.25rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.form-icon img {
+    width: 4rem;
+    height: 4rem;
+    filter: invert(48%) sepia(79%) saturate(3730%) hue-rotate(345deg) brightness(93%) contrast(93%);
 }
 
 .form-title {
-    font-size: 2.25rem;
+    font-size: 2.2rem;
     font-weight: 800;
-    color: #111827;
-    margin: 0;
+    color: #0f172a;
+    margin-bottom: 0.75rem;
+}
+
+.form-description {
+    color: #64748b;
+    font-size: 1rem;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+.form-description strong {
+    color: #f97316;
 }
 
 .form-subtitle {
@@ -259,6 +281,15 @@
 @media (max-width: 900px) {
     .form-card {
         padding: 2.5rem;
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
     }
 }
 
