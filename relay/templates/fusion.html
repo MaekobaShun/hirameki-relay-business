@@ -16,31 +16,112 @@
     let selectedCount = 0;
     const minSelection = 2;
     const maxSelection = 3;
+    let modalStep = 1;
     
     function updateSelectionCount() {
         const checkboxes = document.querySelectorAll('input[name="idea_ids"]:checked');
         selectedCount = checkboxes.length;
         const countDisplay = document.getElementById('selection-count');
-        const executeButton = document.getElementById('execute-button');
+        const fusionButton = document.getElementById('fusion-button');
+        const ticketCountElement = document.getElementById('ticket-count');
+        
+        // チケット数を取得
+        const ticketCount = ticketCountElement ? parseInt(ticketCountElement.textContent) || 0 : 0;
         
         if (countDisplay) {
             countDisplay.textContent = selectedCount;
         }
         
-        if (executeButton) {
-            if (selectedCount < minSelection || selectedCount > maxSelection) {
-                executeButton.disabled = true;
-                executeButton.style.opacity = '0.5';
-                executeButton.style.cursor = 'not-allowed';
+        if (fusionButton) {
+            // アイデア選択数とチケット数の両方をチェック
+            if (selectedCount < minSelection || selectedCount > maxSelection || ticketCount < 1) {
+                fusionButton.disabled = true;
+                fusionButton.style.opacity = '0.5';
+                fusionButton.style.cursor = 'not-allowed';
             } else {
-                executeButton.disabled = false;
-                executeButton.style.opacity = '1';
-                executeButton.style.cursor = 'pointer';
+                fusionButton.disabled = false;
+                fusionButton.style.opacity = '1';
+                fusionButton.style.cursor = 'pointer';
             }
+        }
+    }
+
+    function openFusionModal() {
+        const ticketCountElement = document.getElementById('ticket-count');
+        const ticketCount = ticketCountElement ? parseInt(ticketCountElement.textContent) || 0 : 0;
+        
+        if (selectedCount < minSelection || selectedCount > maxSelection) {
+            alert(`アイデアは${minSelection}〜${maxSelection}個選択してください。`);
+            return;
+        }
+        
+        if (ticketCount < 1) {
+            alert('ガチャチケットが不足しています。アイデアを投稿するとチケットがもらえます。');
+            return;
+        }
+        
+        // モーダルを開くたびに最新の選択されたアイデアIDを更新
+        const checkboxes = document.querySelectorAll('input[name="idea_ids"]:checked');
+        const container = document.getElementById('selected-ideas-container');
+        container.innerHTML = '';
+        
+        checkboxes.forEach(checkbox => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'idea_ids';
+            input.value = checkbox.value;
+            container.appendChild(input);
+        });
+        
+        const modal = document.getElementById('fusion-modal');
+        modal.showModal();
+        modalStep = 1;
+        showModalStep(1);
+    }
+
+    function closeFusionModal() {
+        const modal = document.getElementById('fusion-modal');
+        modal.close();
+        modalStep = 1;
+        showModalStep(1);
+        
+        // フォームをリセット
+        const form = document.getElementById('fusion-modal-form');
+        if (form) {
+            form.reset();
+            // modeとpersonaのデフォルト値を再設定
+            const modeInput = form.querySelector('input[name="mode"][value="creative"]');
+            if (modeInput) modeInput.checked = true;
+            const personaInput = form.querySelector('input[name="persona"][value="professor"]');
+            if (personaInput) personaInput.checked = true;
+        }
+    }
+
+    function showModalStep(step) {
+        document.querySelectorAll('.modal-step').forEach(el => el.style.display = 'none');
+        document.getElementById(`modal-step-${step}`).style.display = 'block';
+        modalStep = step;
+    }
+
+    function nextModalStep() {
+        if (modalStep === 1) {
+            const modeChecked = document.querySelector('input[name="mode"]:checked');
+            if (!modeChecked) {
+                alert('モードを選択してください。');
+                return;
+            }
+            showModalStep(2);
+        }
+    }
+
+    function prevModalStep() {
+        if (modalStep === 2) {
+            showModalStep(1);
         }
     }
     
     document.addEventListener('DOMContentLoaded', function() {
+        // アイデア選択
         const checkboxes = document.querySelectorAll('input[name="idea_ids"]');
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
@@ -93,6 +174,44 @@
                 }
             });
         }
+
+        // モーダル内のモード選択
+        const modeInputs = document.querySelectorAll('input[name="mode"]');
+        const nextButton2 = document.getElementById('modal-next-button-2');
+        modeInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                if (nextButton2) nextButton2.disabled = false;
+            });
+        });
+
+        // モーダル内のペルソナ選択
+        const personaInputs = document.querySelectorAll('input[name="persona"]');
+        const executeButton = document.getElementById('execute-button');
+        personaInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                if (executeButton) executeButton.disabled = false;
+            });
+        });
+
+        // モーダルが閉じられたときにステップとフォームをリセット
+        const modal = document.getElementById('fusion-modal');
+        if (modal) {
+            modal.addEventListener('close', () => {
+                modalStep = 1;
+                showModalStep(1);
+                
+                // フォームをリセット
+                const form = document.getElementById('fusion-modal-form');
+                if (form) {
+                    form.reset();
+                    // modeとpersonaのデフォルト値を再設定
+                    const modeInput = form.querySelector('input[name="mode"][value="creative"]');
+                    if (modeInput) modeInput.checked = true;
+                    const personaInput = form.querySelector('input[name="persona"][value="professor"]');
+                    if (personaInput) personaInput.checked = true;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}
@@ -132,7 +251,6 @@
             <a href="{{ url_for('gacha') }}" class="fusion-link-button">ガチャを回す</a>
         </div>
         {% else %}
-        <form action="{{ url_for('fusion_execute') }}" method="post" id="fusion-form">
             <div class="category-filter-wrapper" style="margin-bottom: 1.5rem;">
                 <label for="fusion-category-filter" class="filter-label">カテゴリで絞り込み：</label>
                 <select id="fusion-category-filter" class="category-filter">
@@ -147,6 +265,7 @@
                     <option value="その他">その他</option>
                 </select>
             </div>
+        <form action="{{ url_for('fusion_execute') }}" method="post" id="fusion-form">
             <div class="ideas-selection-grid" id="fusion-ideas-grid">
                 {% for idea in ideas %}
                 <div class="idea-selection-card" data-category="{{ idea.category }}">
@@ -171,17 +290,210 @@
             </div>
             
             <div class="fusion-actions">
-                <button type="submit" id="execute-button" class="fusion-execute-button" disabled>
+                <a href="{{ url_for('index') }}" class="fusion-cancel-link">キャンセル</a>
+                <button type="button" id="fusion-button" class="fusion-execute-button" onclick="openFusionModal()" disabled>
                     <span class="button-icon">
                         <img src="{{ url_for('static', filename='images/fusion.svg') }}" alt="融合" style="width: 1.2rem; height: 1.2rem;">
                     </span>
-                    融合実行（チケット1枚消費）
+                    融合する
                 </button>
-                <a href="{{ url_for('index') }}" class="fusion-cancel-link">キャンセル</a>
             </div>
         </form>
         {% endif %}
     </section>
 </div>
-{% endblock %}
 
+<!-- 融合モーダル -->
+<dialog id="fusion-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>アイデア融合</h3>
+            <button type="button" onclick="closeFusionModal()" class="modal-close-btn">×</button>
+        </div>
+        
+        <form action="{{ url_for('fusion_execute') }}" method="post" id="fusion-modal-form">
+            <!-- 選択されたアイデアIDを保持 -->
+            <div id="selected-ideas-container"></div>
+            
+            <!-- STEP 1: モード選択 -->
+            <div id="modal-step-1" class="modal-step">
+                <div class="fusion-step-header">
+                    <h3 class="step-title">▼ 融合モードを選んでください</h3>
+                    <p class="step-description">制約を決めるステップです</p>
+                </div>
+
+                <div class="fusion-mode-grid">
+                    <label class="mode-card">
+                        <input type="radio" name="mode" value="creative" checked>
+                        <div class="mode-content">
+                            <span class="mode-emoji">🟣</span>
+                            <span class="mode-title">創造モード</span>
+                            <span class="mode-desc">自由な発想で、面白さ重視の融合アイデアが出ます。</span>
+                        </div>
+                    </label>
+
+                    <label class="mode-card">
+                        <input type="radio" name="mode" value="practical">
+                        <div class="mode-content">
+                            <span class="mode-emoji">🔵</span>
+                            <span class="mode-title">実現モード</span>
+                            <span class="mode-desc">現実に実行できる、現実的な融合アイデアが出ます。</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeFusionModal()" class="btn-cancel">キャンセル</button>
+                    <button type="button" id="modal-next-button-2" class="btn-submit" onclick="nextModalStep()">次へ</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: ペルソナ選択 -->
+            <div id="modal-step-2" class="modal-step" style="display: none;">
+                <div class="fusion-step-header">
+                    <h3 class="step-title">▼ 話し方・考え方を選んでください</h3>
+                    <p class="step-description">誰の視点で融合するかを選びます</p>
+                </div>
+
+                <div class="fusion-persona-grid">
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="professor" checked>
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">🧑‍🏫</span>
+                                <span class="persona-name">教授</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>論理的・理系の視点で考える
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>丁寧で真面目な語調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="gal">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">💅</span>
+                                <span class="persona-name">ギャル</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>流行・SNSで話題になるかを重視
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>明るく、砕けた口調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="elementary">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">👧</span>
+                                <span class="persona-name">小学生</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>常識に縛られず、直感で考える
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>やさしく、素直な語調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="alien">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">👽</span>
+                                <span class="persona-name">宇宙人</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>人間の価値観にとらわれない視点
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>静かで、不思議な語調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="boss">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">👔</span>
+                                <span class="persona-name">上司</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>実務・予算・実行可能性を重視
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>落ち着いて、現実的な語調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="ceo">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">🚀</span>
+                                <span class="persona-name">スタートアップCEO</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>市場性・伸ばし方・ビジネスモデル重視
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>熱量が高い、カジュアル
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="persona-card">
+                        <input type="radio" name="persona" value="future">
+                        <div class="persona-content">
+                            <div class="persona-header">
+                                <span class="persona-emoji">🔮</span>
+                                <span class="persona-name">未来人</span>
+                            </div>
+                            <div class="persona-details">
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">考え方:</span>未来の社会と技術を前提に考える
+                                </div>
+                                <div class="persona-detail-row">
+                                    <span class="persona-label">話し方:</span>落ち着いて、客観的な語調
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="prevModalStep()" class="btn-cancel">戻る</button>
+                    <button type="submit" id="execute-button" class="btn-submit">
+                        <span class="button-icon">
+                            <img src="{{ url_for('static', filename='images/fusion.svg') }}" alt="融合" style="width: 1.2rem; height: 1.2rem;">
+                        </span>
+                        融合実行（チケット1枚消費）
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</dialog>
+{% endblock %}

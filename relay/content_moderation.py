@@ -26,6 +26,58 @@ else:
     GEMINI_AVAILABLE = False
 
 
+# 融合モード定義
+FUSION_MODES = {
+    "creative": {
+        "name": "創造モード",
+        "description": "自由な発想で、面白さ重視の融合アイデアが出ます。"
+    },
+    "practical": {
+        "name": "実現モード",
+        "description": "現実に実行できる、現実的な融合アイデアが出ます。"
+    }
+}
+
+# ペルソナ定義
+PERSONA_DEFINITIONS = {
+    "professor": {
+        "name": "教授",
+        "thinking": "論理的・理系の視点で考える",
+        "tone": "丁寧で真面目な語調"
+    },
+    "gal": {
+        "name": "ギャル",
+        "thinking": "流行・SNSで話題になるかを重視",
+        "tone": "明るく、砕けた口調"
+    },
+    "elementary": {
+        "name": "小学生",
+        "thinking": "常識に縛られず、直感で考える",
+        "tone": "やさしく、素直な語調"
+    },
+    "alien": {
+        "name": "宇宙人",
+        "thinking": "人間の価値観にとらわれない視点",
+        "tone": "静かで、不思議な語調"
+    },
+    "boss": {
+        "name": "上司",
+        "thinking": "実務・予算・実行可能性を重視",
+        "tone": "落ち着いて、現実的な語調"
+    },
+    "ceo": {
+        "name": "スタートアップCEO",
+        "thinking": "市場性・伸ばし方・ビジネスモデル重視",
+        "tone": "熱量が高い、カジュアル"
+    },
+    "future": {
+        "name": "未来人",
+        "thinking": "未来の社会と技術を前提に考える",
+        "tone": "落ち着いて、客観的な語調"
+    }
+}
+
+
 def check_content(title: str, detail: str, category: str) -> Tuple[bool, bool, str]:
     """
     投稿内容をAIで判定する
@@ -67,10 +119,10 @@ def check_content(title: str, detail: str, category: str) -> Tuple[bool, bool, s
             model = genai.GenerativeModel('gemini-2.5-flash-lite')
             print("[AI判定] モデル: gemini-2.5-flash-lite を使用します")
         except Exception as model_error:
-            # フォールバック: gemini-1.5-flashを使用
-            print(f"[AI判定] gemini-2.5-flash-liteが利用できません。gemini-1.5-flashにフォールバックします: {model_error}")
+            # フォールバック: gemini-2.5-flashを使用
+            print(f"[AI判定] gemini-2.5-flash-liteが利用できません。gemini-2.5-flashにフォールバックします: {model_error}")
             model = genai.GenerativeModel('gemini-2.5-flash')
-            print("[AI判定] モデル: gemini-1.5-flash を使用します")
+            print("[AI判定] モデル: gemini-2.5-flash を使用します")
         
         # 判定用のプロンプト
         prompt = f"""以下の投稿内容について、明確な基準に基づいて判定してください。
@@ -81,7 +133,6 @@ def check_content(title: str, detail: str, category: str) -> Tuple[bool, bool, s
 
 判定基準は以下とします。
 
-------------------------------------
 【1. 不適切な投稿（is_inappropriate）】
 以下のいずれかに該当する場合に True とする：
 - 暴力、脅迫、自傷行為の助長
@@ -91,38 +142,30 @@ def check_content(title: str, detail: str, category: str) -> Tuple[bool, bool, s
 - 個人情報（氏名、住所、電話番号、メール、社員番号など）の記載
 - 会社の機密情報（顧客名・売上・内部システム情報など）
 - 明らかなスパム（宣伝・無関係なURL・意味のない文字列の羅列）
-
 ※該当がない場合は False とする。
 
-------------------------------------
 【2. 内容が薄い（is_thin_content）】
 以下のうち **2つ以上**に該当する場合に True とする：
-
-抽象的すぎる  
-- 「すごい」「いい感じ」「やばい」など評価語のみで構成されている  
+抽象的すぎる
+- 「すごい」「いい感じ」「やばい」など評価語のみで構成されている
 - 内容に固有名詞・具体的名詞が一切ない
-
-情報量がほぼない  
+情報量がほぼない
 - 単語の羅列、意味不明な文字列（例：aaaaa, test, ？？？ など）
-
-冗長・重複  
+冗長・重複
 - 同じ単語が3回以上連続して繰り返されている
-
-文脈の不一致  
-- タイトルと詳細に明確な関連がない  
+文脈の不一致
+- タイトルと詳細に明確な関連がない
   例：「新しい会議効率化ツール」→詳細が「今日は晴れでした」
 
 ※文字数チェック（20文字未満）は事前にサーバー側で実行済みのため、ここでは判定しません。
-
 該当が1つ以下なら False とする。
-
 ------------------------------------
 
 出力形式（JSONのみ）：
 {{
   "is_inappropriate": true/false,
   "is_thin_content": true/false,
-  "reason": "両方の判定理由を簡潔に記述"
+  "reason": "判定理由を簡潔に記述"
 }}"""
         
         # デバッグログ: 判定開始
@@ -335,12 +378,14 @@ JSON形式で回答してください：
         return ""
 
 
-def fuse_ideas(idea_list: list) -> dict:
+def fuse_ideas(idea_list: list, mode: str = 'creative', persona: str = 'professor') -> dict:
     """
     複数のアイデアをAIで融合して新しいアイデアを生成
     
     Args:
         idea_list: アイデアのリスト。各アイデアは {"title": str, "detail": str, "category": str} の形式
+        mode: 融合モード ('creative' or 'practical')
+        persona: ペルソナID
     
     Returns:
         {"title": str, "detail": str, "category": str} または空のdict（エラー時）
@@ -358,6 +403,12 @@ def fuse_ideas(idea_list: list) -> dict:
         print(f"[アイデア融合] アイデア数が不正です: {len(idea_list)}個（2〜3個である必要があります）")
         return {}
     
+    # モードとペルソナの設定を取得
+    mode_info = FUSION_MODES.get(mode, FUSION_MODES['creative'])
+    persona_info = PERSONA_DEFINITIONS.get(persona, PERSONA_DEFINITIONS['professor'])
+    
+    print(f"[アイデア融合] モード: {mode_info['name']}, ペルソナ: {persona_info['name']}")
+    
     # 利用可能なカテゴリリスト
     available_categories = [
         "ビジネス・業務効率化",
@@ -374,14 +425,42 @@ def fuse_ideas(idea_list: list) -> dict:
         import google.generativeai as genai
         from google.api_core import exceptions as google_exceptions
         
-        # Gemini 2.5 Flash-Liteモデルを初期化
-        try:
-            model = genai.GenerativeModel('gemini-2.5-flash-lite')
-            print("[アイデア融合] モデル: gemini-2.5-flash-lite を使用します")
-        except Exception:
-            model = genai.GenerativeModel('gemini-2.5-flash')
-            print("[アイデア融合] モデル: gemini-2.5-flash を使用します")
-        
+        def _generate_with_retry(model_name, prompt, max_retries=3, initial_delay=2):
+            """指定されたモデルで生成を試みる（リトライ付き）"""
+            try:
+                model = genai.GenerativeModel(model_name)
+                print(f"[アイデア融合] モデル: {model_name} を使用します")
+            except Exception as e:
+                print(f"[アイデア融合] モデル初期化エラー ({model_name}): {e}")
+                return None
+
+            last_exception = None
+            retry_delay = initial_delay
+
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(prompt)
+                    if attempt > 0:
+                        print(f"[アイデア融合] リトライ成功しました（試行 {attempt + 1}/{max_retries}）")
+                    return response
+                except google_exceptions.ResourceExhausted as e:
+                    last_exception = e
+                    if attempt < max_retries - 1:
+                        # 待機時間を長めに設定（指数バックオフ + ランダム性）
+                        wait_time = retry_delay * (2 ** attempt)
+                        print(f"[アイデア融合] レート制限エラー（429）。{wait_time}秒後にリトライします... (試行 {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"[アイデア融合] リトライ上限に達しました（{max_retries}回試行）")
+                except Exception as e:
+                    print(f"[アイデア融合] 予期せぬエラー ({model_name}): {e}")
+                    last_exception = e
+                    break
+            
+            if last_exception:
+                print(f"[アイデア融合] モデル {model_name} での生成に失敗しました: {last_exception}")
+            return None
+
         # アイデア情報を整形
         ideas_text = ""
         for i, idea in enumerate(idea_list, 1):
@@ -389,58 +468,63 @@ def fuse_ideas(idea_list: list) -> dict:
 【アイデア{i}】
 タイトル: {idea.get('title', '')}
 詳細: {idea.get('detail', '')}
-カテゴリ: {idea.get('category', '')}
+category: {idea.get('category', '')}
 """
         
         # 融合用のプロンプト
-        prompt = f"""以下の{len(idea_list)}つのアイデアを融合して、新しい革新的なアイデアを生成してください。
+        prompt = f"""あなたは以下の【役割】に沿って
+{len(idea_list)}つのアイデアを融合させ、新しいアイデアを提案します。
 
+【モード】
+{mode_info['description']}
+
+【ペルソナ】
+考え方：{persona_info['thinking']}
+話し方：{persona_info['tone']}
+
+【元のアイデア】
 {ideas_text}
 
-【要件】
-1. 各アイデアの良い点を組み合わせて、より価値のある新しいアイデアを作成してください
-2. 単純な組み合わせではなく、創造的に融合させてください
-3. 新しいタイトル（60文字以内）を考えてください
-4. 詳細な説明（500文字以内）を書いてください
-5. 適切なカテゴリを選択してください
+【出力要件】
+
+1. タイトル（20文字以内）
+
+2. 詳細説明（500文字以内）
+   - ターゲットユーザー
+   - 解決する課題
+   - 主要機能
+3. カテゴリ（1つ）
+
+【注意】
+- 元アイデアの要素を羅列しない。
+- 自然な日本語で、ビジネス提案として一貫性ある形にまとめる
+- ペルソナの「考え方」と「話し方」を反映して記述
+
+【出力形式】
+JSON形式で回答してください：
+{{
+  "title": "融合されたアイデアのタイトル（20文字以内）",
+  "detail": "融合されたアイデアの詳細説明（500文字以内、上記の要件をすべて含む）",
+  "category": "以下のカテゴリから最も適切なものを1つ選択"
+}}
 
 選択可能なカテゴリ:
 {', '.join(available_categories)}
-
-JSON形式で回答してください：
-{{
-  "title": "融合されたアイデアのタイトル（60文字以内）",
-  "detail": "融合されたアイデアの詳細説明（500文字以内）",
-  "category": "カテゴリ名（上記のいずれか1つ）"
-}}
 
 該当するカテゴリがない場合は "その他" を選択してください。"""
         
         print(f"[アイデア融合] {len(idea_list)}つのアイデアを融合しています...")
         
-        max_retries = 3
-        retry_delay = 1
-        response = None
-        last_exception = None
+        # まず gemini-2.5-flash-lite で試行
+        response = _generate_with_retry('gemini-2.5-flash-lite', prompt, max_retries=3, initial_delay=4)
         
-        for attempt in range(max_retries):
-            try:
-                response = model.generate_content(prompt)
-                if attempt > 0:
-                    print(f"[アイデア融合] リトライ成功しました（試行 {attempt + 1}/{max_retries}）")
-                break
-            except google_exceptions.ResourceExhausted as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    wait_time = retry_delay * (2 ** attempt)
-                    print(f"[アイデア融合] レート制限エラー（429）。{wait_time}秒後にリトライします... (試行 {attempt + 1}/{max_retries})")
-                    time.sleep(wait_time)
-                else:
-                    print(f"[アイデア融合] リトライ上限に達しました（{max_retries}回試行）")
-                    raise
-        
+        # 失敗した場合は gemini-2.5-flash でフォールバック
         if response is None:
-            raise last_exception if last_exception else Exception("API呼び出しに失敗しました")
+            print("[アイデア融合] gemini-2.5-flash-lite が利用できません。gemini-2.5-flash にフォールバックします...")
+            response = _generate_with_retry('gemini-2.5-flash', prompt, max_retries=3, initial_delay=4)
+
+        if response is None:
+            raise Exception("すべてのモデルでの生成に失敗しました")
         
         response_text = response.text.strip()
         print(f"[アイデア融合] AIからのレスポンス: {response_text[:200]}...")
@@ -460,10 +544,10 @@ JSON形式で回答してください：
                     fused_category = "その他"
                 
                 # タイトルと詳細の長さチェック
-                if len(fused_title) > 60:
-                    fused_title = fused_title[:60]
-                if len(fused_detail) > 500:
-                    fused_detail = fused_detail[:500]
+                if len(fused_title) > 20:
+                    fused_title = fused_title[:20]
+                if len(fused_detail) > 1000:
+                    fused_detail = fused_detail[:1000]
                 
                 print(f"[アイデア融合] 融合成功:")
                 print(f"  タイトル: {fused_title}")

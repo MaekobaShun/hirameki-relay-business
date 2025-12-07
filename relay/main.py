@@ -1397,8 +1397,10 @@ def fusion_execute():
     """アイデア融合実行"""
     user_id = session.get('user_id')
     
-    # 選択されたアイデアIDを取得
+    # フォームから選択情報を取得
     selected_idea_ids = request.form.getlist('idea_ids')
+    mode = request.form.get('mode', 'creative')
+    persona = request.form.get('persona', 'professor')
     
     # アイデア数チェック（2〜3個）
     if len(selected_idea_ids) < 2 or len(selected_idea_ids) > 3:
@@ -1436,8 +1438,8 @@ def fusion_execute():
         return redirect(url_for('fusion'))
     
     # AI融合を実行
-    print(f"\n[アイデア融合] {len(ideas_data)}つのアイデアを融合します...")
-    fused_result = fuse_ideas(ideas_data)
+    print(f"\n[アイデア融合] {len(ideas_data)}つのアイデアを融合します... モード: {mode}, ペルソナ: {persona}")
+    fused_result = fuse_ideas(ideas_data, mode=mode, persona=persona)
     
     if not fused_result or not fused_result.get('title'):
         flash('アイデアの融合に失敗しました。もう一度お試しください。')
@@ -1502,8 +1504,15 @@ def fusion_execute():
         'parent_ideas': ideas_data,
         'parent_idea_id_1': selected_idea_ids[0],
         'parent_idea_id_2': selected_idea_ids[1],
-        'parent_idea_id_3': selected_idea_ids[2] if len(selected_idea_ids) > 2 else None
+        'parent_idea_id_3': selected_idea_ids[2] if len(selected_idea_ids) > 2 else None,
+        'mode': mode,
+        'persona': persona
     }
+    
+    # セッションから選択情報をクリア
+    session.pop('fusion_selected_ideas', None)
+    session.pop('fusion_mode', None)
+    session.modified = True
     
     return redirect(url_for('fusion_result', fusion_id=fusion_id))
 
